@@ -41,11 +41,63 @@ const pendingImages = [
   },
 ];
 
-const workOrders = [
-  { id: "WO-20250612-001", type: "未佩戴安全帽", location: "A区3号楼", status: "rectifying" as const, deadline: "2025-06-13", unit: "华建总承包" },
-  { id: "WO-20250612-002", type: "高空作业未系安全绳", location: "B区基坑", status: "re-review" as const, deadline: "2025-06-12", unit: "华建总承包" },
-  { id: "WO-20250611-003", type: "消防通道占用", location: "D区施工现场", status: "completed" as const, deadline: "2025-06-11", unit: "兴盛分包" },
-  { id: "WO-20250610-004", type: "脚手架缺失防护", location: "A区2号楼", status: "completed" as const, deadline: "2025-06-11", unit: "华建总承包" },
+type WorkOrder = {
+  id: string;
+  type: string;
+  location: string;
+  status: "rectifying" | "re-review" | "completed";
+  deadline: string;
+  unit: string;
+  reviewStage?: "needs-assignment" | "ready-review";
+  reviewMaterials?: {
+    violation: { title: string; time: string; img: string; desc: string };
+    rectification: { title: string; time: string; img: string; desc: string };
+    drone: { title: string; time: string; img: string; desc: string };
+  };
+};
+
+const workOrders: WorkOrder[] = [
+  { id: "WO-20250612-001", type: "未佩戴安全帽", location: "A区3号楼", status: "rectifying", deadline: "2025-06-13", unit: "华建总承包" },
+  {
+    id: "WO-20250612-002",
+    type: "高空作业未系安全绳",
+    location: "B区基坑",
+    status: "re-review",
+    deadline: "2025-06-12",
+    unit: "华建总承包",
+    reviewStage: "ready-review",
+    reviewMaterials: {
+      violation: {
+        title: "初次违规影像",
+        time: "2025-06-12 09:41",
+        img: "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=400&h=300&fit=crop&auto=format",
+        desc: "AI识别高空作业区域存在未系安全绳行为，已生成整改工单。",
+      },
+      rectification: {
+        title: "施工整改反馈",
+        time: "2025-06-12 13:20",
+        img: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&h=300&fit=crop&auto=format",
+        desc: "施工负责人反馈已完成安全绳佩戴与现场交底，提交整改后照片。",
+      },
+      drone: {
+        title: "飞手复拍资料",
+        time: "2025-06-12 15:36",
+        img: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&h=300&fit=crop&auto=format",
+        desc: "鹰眼一队回传同区域飞拍复核影像，等待监理复审确认。",
+      },
+    },
+  },
+  {
+    id: "WO-20250612-005",
+    type: "临边防护缺失",
+    location: "C区4号楼",
+    status: "re-review",
+    deadline: "2025-06-13",
+    unit: "华建总承包",
+    reviewStage: "needs-assignment",
+  },
+  { id: "WO-20250611-003", type: "消防通道占用", location: "D区施工现场", status: "completed", deadline: "2025-06-11", unit: "兴盛分包" },
+  { id: "WO-20250610-004", type: "脚手架缺失防护", location: "A区2号楼", status: "completed", deadline: "2025-06-11", unit: "华建总承包" },
 ];
 
 const droneTeams = [
@@ -344,6 +396,139 @@ function AssignDroneModal({
   );
 }
 
+function ReReviewDetail({
+  workOrder,
+  result,
+  onBack,
+  onDecision,
+}: {
+  workOrder: WorkOrder;
+  result?: "approved" | "rejected";
+  onBack: () => void;
+  onDecision: (id: string, decision: "approved" | "rejected", note: string) => void;
+}) {
+  const [note, setNote] = useState("");
+  const [localResult, setLocalResult] = useState<"approved" | "rejected" | undefined>(result);
+  const materials = workOrder.reviewMaterials;
+
+  const submitDecision = (decision: "approved" | "rejected") => {
+    setLocalResult(decision);
+    onDecision(workOrder.id, decision, note);
+  };
+
+  if (!materials) {
+    return (
+      <div className="flex flex-col h-full">
+        <NavBar title="工单复审" subtitle={workOrder.id} onBack={onBack} />
+        <div className="flex-1 flex items-center justify-center p-8 text-center">
+          <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+            飞手复拍资料尚未回传，请先指派飞行团队完成复核飞拍。
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const materialList = [
+    { key: "violation", data: materials.violation, accent: "var(--danger)" },
+    { key: "rectification", data: materials.rectification, accent: "var(--caution)" },
+    { key: "drone", data: materials.drone, accent: "var(--primary)" },
+  ];
+
+  return (
+    <div className="flex flex-col h-full">
+      <NavBar title="工单复审" subtitle={workOrder.id} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{workOrder.type}</div>
+              <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                {workOrder.location} · {workOrder.unit}
+              </div>
+            </div>
+            {localResult ? (
+              <span
+                className="text-xs px-2.5 py-1 rounded-full font-semibold"
+                style={{
+                  background: localResult === "approved" ? "var(--success)" : "var(--danger)",
+                  color: "#fff",
+                }}
+              >
+                {localResult === "approved" ? "复审通过" : "复审驳回"}
+              </span>
+            ) : (
+              <StatusBadge status="re-review" small />
+            )}
+          </div>
+          <div className="rounded-lg p-3 text-xs leading-relaxed"
+            style={{ background: "rgba(0,107,255,0.08)", color: "var(--secondary-foreground)" }}>
+            请对比同一位置的初次违规资料、施工整改反馈资料和飞手复拍资料，判断违规场景是否仍然存在。
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {materialList.map((item, index) => (
+            <div key={item.key} className="rounded-xl overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+              <div className="relative">
+                <img src={item.data.img} alt={item.data.title} className="w-full object-cover" style={{ height: 132 }} />
+                <div className="absolute left-3 top-3 text-xs px-2 py-0.5 rounded-full font-semibold"
+                  style={{ background: item.accent, color: "#fff" }}>
+                  {index + 1}
+                </div>
+              </div>
+              <div className="p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{item.data.title}</div>
+                  <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{item.data.time}</div>
+                </div>
+                <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--muted-foreground)" }}>
+                  {item.data.desc}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {!localResult && (
+          <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>复审意见</div>
+            <textarea
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              rows={3}
+              placeholder="可填写通过或驳回原因，例如仍有人员未规范佩戴安全绳..."
+              className="w-full rounded-xl p-3 text-sm resize-none outline-none"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            />
+          </div>
+        )}
+      </div>
+
+      {!localResult && (
+        <div className="p-4 flex gap-3 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+          <button
+            onClick={() => submitDecision("rejected")}
+            className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+            style={{ background: "var(--danger)", color: "#fff" }}
+          >
+            <XCircle size={16} />
+            驳回整改
+          </button>
+          <button
+            onClick={() => submitDecision("approved")}
+            className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+            style={{ background: "var(--success)", color: "#fff" }}
+          >
+            <CheckCircle2 size={16} />
+            复审通过
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Tabs ────────────────────────────────────────────────
 
 function ReviewTab({ onOpenDetail }: { onOpenDetail: (img: typeof pendingImages[0]) => void }) {
@@ -410,7 +595,15 @@ function ReviewTab({ onOpenDetail }: { onOpenDetail: (img: typeof pendingImages[
   );
 }
 
-function WorkOrderTab({ onAssign }: { onAssign: (id: string) => void }) {
+function WorkOrderTab({
+  onAssign,
+  onReReview,
+  reviewResults,
+}: {
+  onAssign: (id: string) => void;
+  onReReview: (id: string) => void;
+  reviewResults: Record<string, "approved" | "rejected">;
+}) {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
   const filters = [
@@ -484,11 +677,41 @@ function WorkOrderTab({ onAssign }: { onAssign: (id: string) => void }) {
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>责任单位: {wo.unit}</span>
-              {wo.status === "re-review" && (
+              <div className="min-w-0">
+                <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>责任单位: {wo.unit}</span>
+                {wo.status === "re-review" && (
+                  <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                    {reviewResults[wo.id] === "approved" && "复审通过，流程结束"}
+                    {reviewResults[wo.id] === "rejected" && "复审驳回，需重新整改"}
+                    {!reviewResults[wo.id] && wo.reviewStage === "ready-review" && "飞手影像已回传，待监理复审"}
+                    {!reviewResults[wo.id] && wo.reviewStage === "needs-assignment" && "待指派飞行团队复核"}
+                  </div>
+                )}
+              </div>
+              {wo.status === "re-review" && reviewResults[wo.id] === "approved" && (
+                <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "var(--success)", color: "#fff" }}>
+                  已通过
+                </span>
+              )}
+              {wo.status === "re-review" && reviewResults[wo.id] === "rejected" && (
+                <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "var(--danger)", color: "#fff" }}>
+                  已驳回
+                </span>
+              )}
+              {wo.status === "re-review" && !reviewResults[wo.id] && wo.reviewStage === "ready-review" && (
+                <button
+                  onClick={() => onReReview(wo.id)}
+                  className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 flex-shrink-0"
+                  style={{ background: "var(--primary)", color: "#fff" }}
+                >
+                  <CheckCircle2 size={12} />
+                  进入复审
+                </button>
+              )}
+              {wo.status === "re-review" && !reviewResults[wo.id] && wo.reviewStage !== "ready-review" && (
                 <button
                   onClick={() => onAssign(wo.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1"
+                  className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 flex-shrink-0"
                   style={{ background: "rgba(95,180,255,0.15)", color: "var(--accent)" }}
                 >
                   <Navigation size={12} />
@@ -908,6 +1131,8 @@ export function SupervisorApp() {
   const [activeTab, setActiveTab] = useState("home");
   const [detail, setDetail] = useState<typeof pendingImages[0] | null>(null);
   const [assignId, setAssignId] = useState<string | null>(null);
+  const [reReviewId, setReReviewId] = useState<string | null>(null);
+  const [reviewResults, setReviewResults] = useState<Record<string, "approved" | "rejected">>({});
   const [messageThreads, setMessageThreads] = useState<SupervisorLeaderThread[]>(supervisorLeaderThreads);
   const messageUnread = messageThreads.reduce((sum, thread) => sum + thread.unread, 0);
 
@@ -943,6 +1168,10 @@ export function SupervisorApp() {
     setActiveTab("message");
   };
 
+  const handleReReviewDecision = (id: string, decision: "approved" | "rejected") => {
+    setReviewResults((current) => ({ ...current, [id]: decision }));
+  };
+
   const tabs: TabItem[] = [
     { key: "home", label: "首页", icon: <LayoutGrid size={20} /> },
     { key: "review", label: "图片审核", icon: <Camera size={20} />, badge: pendingImages.length },
@@ -970,6 +1199,20 @@ export function SupervisorApp() {
         onAssigned={handleTeamAssigned}
       />
     );
+  }
+
+  if (reReviewId) {
+    const workOrder = workOrders.find((item) => item.id === reReviewId);
+    if (workOrder) {
+      return (
+        <ReReviewDetail
+          workOrder={workOrder}
+          result={reviewResults[workOrder.id]}
+          onBack={() => setReReviewId(null)}
+          onDecision={(id, decision) => handleReReviewDecision(id, decision)}
+        />
+      );
+    }
   }
 
   return (
@@ -1007,7 +1250,11 @@ export function SupervisorApp() {
           <ReviewTab onOpenDetail={(img) => setDetail(img)} />
         )}
         {activeTab === "workorder" && (
-          <WorkOrderTab onAssign={(id) => setAssignId(id)} />
+          <WorkOrderTab
+            onAssign={(id) => setAssignId(id)}
+            onReReview={(id) => setReReviewId(id)}
+            reviewResults={reviewResults}
+          />
         )}
         {activeTab === "message" && <MessageTab threads={messageThreads} setThreads={setMessageThreads} />}
         {activeTab === "dashboard" && <DashboardTab />}
