@@ -5,7 +5,7 @@ import {
   LayoutGrid, ClipboardList, User,
   MapPin, Clock, ChevronRight,
   Navigation, Users, CheckCircle2, AlertTriangle,
-  MessageCircle, Send, Shield, PanelLeftOpen, PanelLeftClose,
+  Send, Shield, PanelLeftOpen, PanelLeftClose,
   RotateCcw,
 } from "lucide-react";
 
@@ -891,7 +891,8 @@ export function DroneLeaderApp() {
   const [handledAssignmentIds, setHandledAssignmentIds] = useState<string[]>([]);
   const [teamTasks, setTeamTasks] = useState<TeamFlightTask[]>(initialTeamTasks);
   const [messageThreads, setMessageThreads] = useState<LeaderSupervisorThread[]>(leaderSupervisorThreads);
-  const messageUnread = messageThreads.reduce((sum, thread) => sum + thread.unread, 0);
+  // 已隐藏功能：飞手队长通信未在当前版本开放入口
+  // const messageUnread = messageThreads.reduce((sum, thread) => sum + thread.unread, 0);
   const pendingAssignments = assignments.filter((assignment) => !handledAssignmentIds.includes(assignment.id));
   const rejectedTasks = teamTasks.filter((task) => task.taskStatus === "rejected");
 
@@ -933,7 +934,8 @@ export function DroneLeaderApp() {
     { key: "assign", label: "指派", icon: <Users size={20} />, badge: pendingAssignments.length + rejectedTasks.length },
     { key: "tasks", label: "任务", icon: <ClipboardList size={20} />, badge: teamTasks.filter((task) => task.taskStatus === "rejected").length },
     { key: "exceptions", label: "异常", icon: <AlertTriangle size={20} />, badge: exceptionFeedbacks.length },
-    { key: "message", label: "消息", icon: <MessageCircle size={20} />, badge: messageUnread },
+    // 已隐藏功能：飞手队长通信入口已隐藏
+    // { key: "message", label: "消息", icon: <MessageCircle size={20} />, badge: messageUnread },
   ];
 
   const pageTitles: Record<string, string> = {

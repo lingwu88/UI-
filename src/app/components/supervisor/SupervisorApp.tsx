@@ -3,52 +3,46 @@ import { NavBar } from "../shared/NavBar";
 import { BottomTab, TabItem } from "../shared/BottomTab";
 import { StatusBadge } from "../shared/StatusBadge";
 import {
-  LayoutGrid, ClipboardList, Send, PieChart,
-  Camera, MapPin, Clock, User, ChevronRight,
+  LayoutGrid, ClipboardList, Send,
+  MapPin, Clock, User, ChevronRight,
   CheckCircle2, XCircle, AlertTriangle,
-  Zap, Shield, TrendingUp, Users, Navigation, Plus,
-  MessageCircle, Search, PanelLeftOpen, PanelLeftClose,
+  Zap, Shield, TrendingUp, Users, Navigation,
+  Search, PanelLeftOpen, PanelLeftClose,
   CalendarRange, Download, FileSpreadsheet, DatabaseBackup,
 } from "lucide-react";
 
 // ─── Mock Data ───────────────────────────────────────────────
-const pendingImages = [
-  {
-    id: "IMG-001",
-    type: "未佩戴安全帽",
-    location: "A区3号楼-5层",
-    time: "2025-06-12 09:23",
-    persons: ["张某某", "李某某"],
-    confidence: 94,
-    img: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&auto=format",
-  },
-  {
-    id: "IMG-002",
-    type: "高空作业未系安全绳",
-    location: "B区基坑-东侧",
-    time: "2025-06-12 09:41",
-    persons: ["王某某"],
-    confidence: 87,
-    img: "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=400&h=300&fit=crop&auto=format",
-  },
-  {
-    id: "IMG-003",
-    type: "危险区域违规入侵",
-    location: "C区临时堆料区",
-    time: "2025-06-12 10:05",
-    persons: ["赵某某", "陈某某", "刘某某"],
-    confidence: 91,
-    img: "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=400&h=300&fit=crop&auto=format",
-  },
-];
+type WorkOrderViolationSnapshot = {
+  type: string;
+  location: string;
+  time: string;
+  persons: string[];
+  confidence: number;
+  img: string;
+};
 
 type WorkOrder = {
   id: string;
   type: string;
+  site: string;
   location: string;
-  status: "rectifying" | "re-review" | "completed";
+  status: "pending-deadline" | "rectifying" | "re-review" | "completed";
   deadline: string;
   unit: string;
+  taskDetail: {
+    taskName: string;
+    createdAt: string;
+    issuer: string;
+    requirement: string;
+  };
+  rectificationInfo: {
+    statusText: string;
+    rectifier: string;
+    team: string;
+    updatedAt: string;
+    summary: string;
+  };
+  violationSnapshot: WorkOrderViolationSnapshot;
   reviewStage?: "needs-assignment" | "ready-review";
   reviewMaterials?: {
     violation: { title: string; time: string; img: string; desc: string };
@@ -58,14 +52,65 @@ type WorkOrder = {
 };
 
 const workOrders: WorkOrder[] = [
-  { id: "WO-20250612-001", type: "未佩戴安全帽", location: "A区3号楼", status: "rectifying", deadline: "2025-06-13", unit: "华建总承包" },
+  {
+    id: "WO-20250612-001",
+    type: "未佩戴安全帽",
+    site: "工地A",
+    location: "A区3号楼",
+    status: "pending-deadline",
+    deadline: "",
+    unit: "华建总承包",
+    taskDetail: {
+      taskName: "5层作业面安全防护整改",
+      createdAt: "2025-06-12 09:30",
+      issuer: "李建国",
+      requirement: "核查5层作业人员个人防护佩戴情况，补充班前安全交底并完成现场整改。",
+    },
+    rectificationInfo: {
+      statusText: "待设置整改期限",
+      rectifier: "张工",
+      team: "华建总承包施工班组",
+      updatedAt: "2025-06-12 11:10",
+      summary: "监理已创建违规工单，待设置整改期限后通知责任单位启动整改。",
+    },
+    violationSnapshot: {
+      type: "未佩戴安全帽",
+      location: "A区3号楼-5层",
+      time: "2025-06-12 09:23",
+      persons: ["张某某", "李某某"],
+      confidence: 94,
+      img: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&auto=format",
+    },
+  },
   {
     id: "WO-20250612-002",
     type: "高空作业未系安全绳",
+    site: "工地B",
     location: "B区基坑",
     status: "re-review",
     deadline: "2025-06-12",
     unit: "华建总承包",
+    taskDetail: {
+      taskName: "B区基坑高空作业隐患整改复审",
+      createdAt: "2025-06-12 09:45",
+      issuer: "李建国",
+      requirement: "审核高空作业区域安全绳佩戴、作业交底和警戒区域设置情况，确认整改是否落实。",
+    },
+    rectificationInfo: {
+      statusText: "整改完成，待复审",
+      rectifier: "周海涛",
+      team: "华建总承包基坑班组",
+      updatedAt: "2025-06-12 13:20",
+      summary: "已完成安全绳补佩戴、作业区域警戒线复位和现场交底，整改资料已提交。",
+    },
+    violationSnapshot: {
+      type: "高空作业未系安全绳",
+      location: "B区基坑-东侧",
+      time: "2025-06-12 09:41",
+      persons: ["王某某"],
+      confidence: 87,
+      img: "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=400&h=300&fit=crop&auto=format",
+    },
     reviewStage: "ready-review",
     reviewMaterials: {
       violation: {
@@ -81,24 +126,134 @@ const workOrders: WorkOrder[] = [
         desc: "施工负责人反馈已完成安全绳佩戴与现场交底，提交整改后照片。",
       },
       drone: {
-        title: "飞手复拍资料",
+        title: "整改补充资料",
         time: "2025-06-12 15:36",
         img: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&h=300&fit=crop&auto=format",
-        desc: "鹰眼一队回传同区域飞拍复核影像，等待监理复审确认。",
+        desc: "鹰眼一队补充上传同区域现场影像，供监理审核整改落实情况。",
       },
     },
   },
   {
     id: "WO-20250612-005",
     type: "临边防护缺失",
+    site: "工地C",
     location: "C区4号楼",
     status: "re-review",
     deadline: "2025-06-13",
     unit: "华建总承包",
+    taskDetail: {
+      taskName: "C区4号楼临边防护整改复审",
+      createdAt: "2025-06-12 10:20",
+      issuer: "李建国",
+      requirement: "检查临边护栏、警示标识和作业面隔离措施是否恢复到位，并补充整改现场照片和说明。",
+    },
+    rectificationInfo: {
+      statusText: "整改已反馈，待巡检资料回传",
+      rectifier: "陈立峰",
+      team: "华建总承包主体班组",
+      updatedAt: "2025-06-12 14:05",
+      summary: "施工方已反馈护栏和警示带恢复完成，待补充整改现场照片和说明供监理审核。",
+    },
+    violationSnapshot: {
+      type: "危险区域违规入侵",
+      location: "C区临时堆料区",
+      time: "2025-06-12 10:05",
+      persons: ["赵某某", "陈某某", "刘某某"],
+      confidence: 91,
+      img: "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=400&h=300&fit=crop&auto=format",
+    },
     reviewStage: "needs-assignment",
   },
-  { id: "WO-20250611-003", type: "消防通道占用", location: "D区施工现场", status: "completed", deadline: "2025-06-11", unit: "兴盛分包" },
-  { id: "WO-20250610-004", type: "脚手架缺失防护", location: "A区2号楼", status: "completed", deadline: "2025-06-11", unit: "华建总承包" },
+  {
+    id: "WO-20250611-003",
+    type: "消防通道占用",
+    site: "工地D",
+    location: "D区施工现场",
+    status: "completed",
+    deadline: "2025-06-11",
+    unit: "兴盛分包",
+    taskDetail: {
+      taskName: "D区消防通道清理整改",
+      createdAt: "2025-06-11 09:00",
+      issuer: "李建国",
+      requirement: "清理消防通道障碍物，恢复通道畅通并拍照留档。",
+    },
+    rectificationInfo: {
+      statusText: "整改完成",
+      rectifier: "赵建华",
+      team: "兴盛分包材料班组",
+      updatedAt: "2025-06-11 14:10",
+      summary: "消防通道堆物已清理，现场复查通过并归档。",
+    },
+    violationSnapshot: {
+      type: "消防通道占用",
+      location: "D区施工现场-东侧通道",
+      time: "2025-06-11 08:52",
+      persons: ["刘某某"],
+      confidence: 89,
+      img: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&auto=format",
+    },
+  },
+  {
+    id: "WO-20250610-004",
+    type: "脚手架缺失防护",
+    site: "工地A",
+    location: "A区2号楼",
+    status: "completed",
+    deadline: "2025-06-11",
+    unit: "华建总承包",
+    taskDetail: {
+      taskName: "A区2号楼脚手架防护整改",
+      createdAt: "2025-06-10 14:30",
+      issuer: "李建国",
+      requirement: "补齐脚手架外立面防护设施，检查作业层通道和防护网设置。",
+    },
+    rectificationInfo: {
+      statusText: "整改完成",
+      rectifier: "孙志强",
+      team: "华建总承包外架班组",
+      updatedAt: "2025-06-11 09:20",
+      summary: "已补齐防护网和临边防护，现场巡检记录已归档。",
+    },
+    violationSnapshot: {
+      type: "脚手架缺失防护",
+      location: "A区2号楼-外立面",
+      time: "2025-06-10 14:18",
+      persons: ["王某某", "周某某"],
+      confidence: 88,
+      img: "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=400&h=300&fit=crop&auto=format",
+    },
+  },
+  {
+    id: "WO-20250612-006",
+    type: "临电防护不到位",
+    site: "工地B",
+    location: "B区1号楼配电箱区域",
+    status: "rectifying",
+    deadline: "2025-06-12",
+    unit: "华建总承包",
+    taskDetail: {
+      taskName: "B区1号楼临电防护二次整改",
+      createdAt: "2025-06-12 11:25",
+      issuer: "李建国",
+      requirement: "对配电箱警示隔离、漏保标识和临时线路收口情况进行二次整改，并在原整改期限内补齐整改资料。",
+    },
+    rectificationInfo: {
+      statusText: "二次整改中",
+      rectifier: "郑晓东",
+      team: "华建总承包机电班组",
+      updatedAt: "2025-06-12 12:10",
+      summary: "首次整改后仍存在临时线路裸露问题，监理已驳回整改资料，当前按原整改期限 2025-06-12 继续进行二次整改。",
+    },
+    violationSnapshot: {
+      type: "临电防护不到位",
+      location: "B区1号楼-配电箱旁",
+      time: "2025-06-12 11:18",
+      persons: ["吴某某"],
+      confidence: 90,
+      img: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=400&h=300&fit=crop&auto=format",
+    },
+  },
 ];
 
 const droneTeams = [
@@ -127,14 +282,13 @@ type FlightTask = {
 const initialFlightTasks: FlightTask[] = [
   {
     id: "FT-20250612-001",
-    workOrderId: "WO-20250612-005",
-    type: "整改复核飞拍",
+    type: "临边作业安全巡检",
     location: "C区4号楼-临边作业面",
     gps: "30.566218, 114.307912",
     deadline: "2025-06-13 16:00",
     status: "pending-assignment",
     supervisorName: "李建国",
-    requirement: "复核C区4号楼临边防护恢复情况，需拍摄临边护栏、警示标识和作业人员活动区域。",
+    requirement: "巡检C区4号楼临边作业面安全情况，需拍摄临边护栏、警示标识、人员活动区域和现场通行状况。",
   },
   {
     id: "FT-20250612-002",
@@ -148,14 +302,13 @@ const initialFlightTasks: FlightTask[] = [
   },
   {
     id: "FT-20250611-003",
-    workOrderId: "WO-20250610-004",
-    type: "整改复核飞拍",
+    type: "脚手架作业面巡检",
     location: "A区2号楼-脚手架外立面",
     gps: "30.565600, 114.302880",
     deadline: "2025-06-11 15:00",
     status: "assigned",
     supervisorName: "李建国",
-    requirement: "复核脚手架防护网补设情况，重点拍摄二至四层外立面连续防护。",
+    requirement: "巡检脚手架作业面安全情况，重点拍摄二至四层外立面防护、作业通道和材料堆放情况。",
     assignedTeamId: "T002",
     assignedTeamName: "鹰眼二队",
     assignedLeader: "张明远",
@@ -195,7 +348,7 @@ const supervisorLeaderThreads: SupervisorLeaderThread[] = [
     unread: 2,
     lastActive: "刚刚",
     messages: [
-      { id: "m1", from: "me", text: "孙队长，B区基坑复核飞拍今天16:00前需要回传，请优先安排。", time: "09:26" },
+      { id: "m1", from: "me", text: "孙队长，B区基坑安全巡检任务今天16:00前需要完成，请优先安排。", time: "09:26" },
       { id: "m2", from: "them", text: "收到，王飞手已经在准备电池和航线。", time: "09:28" },
       { id: "m3", from: "them", text: "现场东侧风速偏高，我们会先做安全确认。", time: "09:31" },
     ],
@@ -211,8 +364,8 @@ const supervisorLeaderThreads: SupervisorLeaderThread[] = [
     unread: 0,
     lastActive: "18分钟前",
     messages: [
-      { id: "m1", from: "them", text: "A区2号楼脚手架复核图像已上传，等待您审核。", time: "08:46" },
-      { id: "m2", from: "me", text: "已看到，辛苦。后续如果施工方补防护网，再补一组近景。", time: "08:51" },
+      { id: "m1", from: "them", text: "A区2号楼脚手架巡检影像已上传，现场风险点已同步标注。", time: "08:46" },
+      { id: "m2", from: "me", text: "已收到，辛苦。后续请继续补充作业通道和材料堆放区域近景。", time: "08:51" },
     ],
   },
 ];
@@ -235,126 +388,13 @@ function createAssignedLeaderThread(teamId: string, sourceId: string, messageTex
       {
         id: `m-${Date.now()}`,
         from: "me",
-        text: messageText ?? `${team.leader}，${sourceId} 已指派给 ${team.name}，请安排飞手并保持任务同步。`,
+        text: messageText ?? `${team.leader}，巡检任务 ${sourceId} 已指派给 ${team.name}，请安排飞手执行并及时同步巡检进展。`,
         time: "刚刚",
       },
     ],
   };
 }
-
 // ─── Sub-screens ─────────────────────────────────────────────
-
-function ImageReviewDetail({ img, onBack, onConfirm, onReject }: {
-  img: typeof pendingImages[0];
-  onBack: () => void;
-  onConfirm: () => void;
-  onReject: () => void;
-}) {
-  const [decision, setDecision] = useState<null | "confirm" | "reject">(null);
-
-  return (
-    <div className="flex flex-col h-full">
-      <NavBar title="违规图片审核" onBack={onBack} />
-      <div className="flex-1 overflow-y-auto">
-        {/* Image */}
-        <div className="relative">
-          <img src={img.img} alt="violation" className="w-full object-cover" style={{ height: 220 }} />
-          <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(7,19,36,0.9) 0%, transparent 50%)" }} />
-          <div className="absolute bottom-3 left-4 right-4">
-            <div className="flex items-center justify-between">
-              <span className="text-white font-semibold">{img.type}</span>
-              <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{ background: "rgba(255,77,79,0.85)", color: "#fff" }}>
-                AI置信度 {img.confidence}%
-              </span>
-            </div>
-          </div>
-          {/* AI overlay markers */}
-          <div className="absolute top-8 left-12 border-2 rounded-sm pointer-events-none"
-            style={{ width: 60, height: 80, borderColor: "var(--danger)", boxShadow: "0 0 8px rgba(255,77,79,0.5)" }}>
-            <span className="absolute -top-4 left-0 text-xs font-mono" style={{ color: "var(--danger)" }}>违规人员</span>
-          </div>
-        </div>
-
-        {/* Info Cards */}
-        <div className="p-4 space-y-3">
-          <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-            <h3 className="text-sm font-semibold" style={{ color: "var(--accent)" }}>违规信息</h3>
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: "违规类型", value: img.type, icon: <AlertTriangle size={14} /> },
-                { label: "拍摄时间", value: img.time.split(" ")[1], icon: <Clock size={14} /> },
-                { label: "拍摄位置", value: img.location, icon: <MapPin size={14} /> },
-                { label: "涉事人员", value: img.persons.join("、"), icon: <User size={14} /> },
-              ].map((item) => (
-                <div key={item.label} className="space-y-1">
-                  <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                    {item.icon}
-                    <span style={{ fontSize: 11 }}>{item.label}</span>
-                  </div>
-                  <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--accent)" }}>AI识别结果</h3>
-            <div className="space-y-2">
-              {["未佩戴安全帽", "人员在高风险区域"].map((item, i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <span className="text-sm" style={{ color: "var(--foreground)" }}>{item}</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--secondary)" }}>
-                      <div className="h-full rounded-full" style={{ width: `${i === 0 ? 94 : 78}%`, background: "var(--primary)" }} />
-                    </div>
-                    <span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>{i === 0 ? "94%" : "78%"}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {decision && (
-            <div
-              className="rounded-xl p-3 flex items-center gap-2 text-sm font-medium"
-              style={{
-                background: decision === "confirm" ? "rgba(255,77,79,0.1)" : "rgba(53,208,127,0.1)",
-                border: `1px solid ${decision === "confirm" ? "rgba(255,77,79,0.3)" : "rgba(53,208,127,0.3)"}`,
-                color: decision === "confirm" ? "var(--danger)" : "var(--success)",
-              }}
-            >
-              {decision === "confirm" ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
-              {decision === "confirm" ? "已标记为属实违规，系统将自动生成工单" : "已标记为误判，不进行后续处理"}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      {!decision && (
-        <div className="p-4 flex gap-3 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
-          <button
-            onClick={() => { setDecision("reject"); onReject(); }}
-            className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
-            style={{ background: "var(--secondary)", color: "var(--secondary-foreground)" }}
-          >
-            <XCircle size={16} />
-            误判，忽略
-          </button>
-          <button
-            onClick={() => { setDecision("confirm"); onConfirm(); }}
-            className="flex-1 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
-            style={{ background: "var(--destructive)", color: "#fff" }}
-          >
-            <CheckCircle2 size={16} />
-            属实违规，生成工单
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 function AssignDroneModal({
   workOrderId,
@@ -466,9 +506,68 @@ function FlightTaskStatusBadge({ status }: { status: FlightTask["status"] }) {
   );
 }
 
+function formatWorkOrderDeadline(deadline: string) {
+  return deadline?.trim() ? deadline : "待设置";
+}
+
+const supervisorFilterNow = new Date("2025-06-12T12:30:00");
+
+function parseWorkOrderDateTime(value: string) {
+  return new Date(value.replace(" ", "T"));
+}
+
+function matchesCreatedTimeRange(createdAt: string, range: string) {
+  if (range === "all") return true;
+  const createdTime = parseWorkOrderDateTime(createdAt).getTime();
+  const diffHours = (supervisorFilterNow.getTime() - createdTime) / (1000 * 60 * 60);
+  if (Number.isNaN(diffHours) || diffHours < 0) return false;
+  if (range === "1h") return diffHours <= 1;
+  if (range === "4h") return diffHours <= 4;
+  if (range === "8h") return diffHours <= 8;
+  return true;
+}
+
+function SupervisorWorkOrderStatusBadge({ status }: { status: WorkOrder["status"] }) {
+  if (status === "pending-deadline") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full font-medium"
+        style={{
+          background: "rgba(255,177,0,0.16)",
+          color: "var(--warning)",
+          padding: "1px 8px",
+          fontSize: 11,
+        }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--warning)" }} />
+        待设置期限
+      </span>
+    );
+  }
+
+  if (status !== "re-review") {
+    return <StatusBadge status={status} small />;
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full font-medium"
+      style={{
+        background: "var(--info)",
+        color: "#fff",
+        padding: "1px 8px",
+        fontSize: 11,
+      }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#fff" }} />
+      待审核
+    </span>
+  );
+}
+
 function FlightTaskTab({
   tasks,
-  onCreate,
+  onCreate: _onCreate,
   onAssign,
 }: {
   tasks: FlightTask[];
@@ -508,7 +607,7 @@ function FlightTaskTab({
 
       <div className="flex items-center justify-between gap-3 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
-          {task.workOrderId ? `关联工单：${task.workOrderId}` : "自主巡检任务"}
+          {task.workOrderId ? `巡检任务编号：${task.workOrderId}` : "普通工地安全巡检任务"}
           {task.assignedTeamName ? ` · ${task.assignedTeamName}` : ""}
         </div>
         {task.status === "pending-assignment" ? (
@@ -543,10 +642,11 @@ function FlightTaskTab({
             </div>
           ))}
         </div>
-
+        {/* 已隐藏功能：监理端“创建飞拍任务”入口已隐藏 */}
+        {/*
         <button
           type="button"
-          onClick={onCreate}
+          onClick={_onCreate}
           className="w-full rounded-xl p-4 flex items-center gap-3 text-left active:opacity-80"
           style={{ background: "linear-gradient(135deg, rgba(0,107,255,0.12), rgba(95,180,255,0.10))", border: "1px solid rgba(0,107,255,0.26)" }}
         >
@@ -559,6 +659,7 @@ function FlightTaskTab({
           </div>
           <ChevronRight size={16} color="var(--primary)" />
         </button>
+        */}
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
@@ -820,30 +921,17 @@ function ReReviewDetail({
   const [note, setNote] = useState("");
   const [localResult, setLocalResult] = useState<"approved" | "rejected" | undefined>(result);
   const materials = workOrder.reviewMaterials;
+  const { taskDetail, rectificationInfo } = workOrder;
 
   const submitDecision = (decision: "approved" | "rejected") => {
     setLocalResult(decision);
     onDecision(workOrder.id, decision, note);
   };
 
-  if (!materials) {
-    return (
-      <div className="flex flex-col h-full">
-        <NavBar title="工单复审" subtitle={workOrder.id} onBack={onBack} />
-        <div className="flex-1 flex items-center justify-center p-8 text-center">
-          <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-            飞手复拍资料尚未回传，请先指派飞行团队完成复核飞拍。
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const materialList = [
     { key: "violation", data: materials.violation, accent: "var(--danger)" },
     { key: "rectification", data: materials.rectification, accent: "var(--caution)" },
-    { key: "drone", data: materials.drone, accent: "var(--primary)" },
-  ];
+  ] as const;
 
   return (
     <div className="flex flex-col h-full">
@@ -868,37 +956,85 @@ function ReReviewDetail({
                 {localResult === "approved" ? "复审通过" : "复审驳回"}
               </span>
             ) : (
-              <StatusBadge status="re-review" small />
+              <SupervisorWorkOrderStatusBadge status="re-review" />
             )}
           </div>
           <div className="rounded-lg p-3 text-xs leading-relaxed"
             style={{ background: "rgba(0,107,255,0.08)", color: "var(--secondary-foreground)" }}>
-            请对比同一位置的初次违规资料、施工整改反馈资料和飞手复拍资料，判断违规场景是否仍然存在。
+            请对比同一位置的初次违规资料和施工整改反馈资料，结合整改情况判断违规场景是否已经消除。
           </div>
         </div>
 
-        <div className="space-y-3">
-          {materialList.map((item, index) => (
-            <div key={item.key} className="rounded-xl overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-              <div className="relative">
-                <img src={item.data.img} alt={item.data.title} className="w-full object-cover" style={{ height: 132 }} />
-                <div className="absolute left-3 top-3 text-xs px-2 py-0.5 rounded-full font-semibold"
-                  style={{ background: item.accent, color: "#fff" }}>
-                  {index + 1}
-                </div>
+        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>工单任务详情</div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "任务名称", value: taskDetail.taskName },
+              { label: "工单编号", value: workOrder.id },
+              { label: "发起时间", value: taskDetail.createdAt },
+              { label: "发起人", value: taskDetail.issuer },
+            ].map((item) => (
+              <div key={item.label}>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
               </div>
-              <div className="p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{item.data.title}</div>
-                  <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{item.data.time}</div>
-                </div>
-                <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--muted-foreground)" }}>
-                  {item.data.desc}
-                </p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+            <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>任务要求</div>
+            <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{taskDetail.requirement}</div>
+          </div>
         </div>
+
+        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>整改情况</div>
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { label: "整改状态", value: rectificationInfo.statusText },
+              { label: "整改人", value: rectificationInfo.rectifier },
+              { label: "整改班组", value: rectificationInfo.team },
+              { label: "更新时间", value: rectificationInfo.updatedAt },
+            ].map((item) => (
+              <div key={item.label}>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+            <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>整改说明</div>
+            <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{rectificationInfo.summary}</div>
+          </div>
+        </div>
+
+        {materials ? (
+          <div className="space-y-3">
+            {materialList.map((item, index) => (
+              <div key={item.key} className="rounded-xl overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                <div className="relative">
+                  <img src={item.data.img} alt={item.data.title} className="w-full object-cover" style={{ height: 132 }} />
+                  <div className="absolute left-3 top-3 text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: item.accent, color: "#fff" }}>
+                    {index + 1}
+                  </div>
+                </div>
+                <div className="p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{item.data.title}</div>
+                    <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{item.data.time}</div>
+                  </div>
+                  <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--muted-foreground)" }}>
+                    {item.data.desc}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl p-6 text-center text-sm" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
+            整改资料尚未补充完整，请先完成整改反馈后再进入审核。
+          </div>
+        )}
 
         {!localResult && (
           <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
@@ -941,93 +1077,45 @@ function ReReviewDetail({
 
 // ─── Main Tabs ────────────────────────────────────────────────
 
-function ReviewTab({ onOpenDetail }: { onOpenDetail: (img: typeof pendingImages[0]) => void }) {
-  return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="p-4 space-y-3">
-        <div className="flex items-center justify-between mb-1">
-          <h2 className="text-sm font-semibold" style={{ color: "var(--muted-foreground)" }}>待审核违规图片</h2>
-          <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-            style={{ background: "rgba(255,224,71,0.15)", color: "var(--caution)" }}>
-            {pendingImages.length} 条待处理
-          </span>
-        </div>
-
-        {pendingImages.map((img) => (
-          <button
-            key={img.id}
-            onClick={() => onOpenDetail(img)}
-            className="w-full rounded-xl overflow-hidden text-left active:opacity-80"
-            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
-          >
-            <div className="relative">
-              <img src={img.img} alt="" className="w-full object-cover" style={{ height: 140 }} />
-              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(7,19,36,0.8) 0%, transparent 50%)" }} />
-              <div className="absolute top-2 left-2">
-                <StatusBadge status="pending" small />
-              </div>
-              <div className="absolute bottom-2 left-3 right-3">
-                <div className="font-semibold text-white text-sm">{img.type}</div>
-              </div>
-            </div>
-            <div className="p-3 space-y-2">
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                  <MapPin size={12} />
-                  <span style={{ fontSize: 12 }}>{img.location}</span>
-                </div>
-                <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                  <Clock size={12} />
-                  <span style={{ fontSize: 12 }}>{img.time.split(" ")[1]}</span>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                  <User size={12} />
-                  <span style={{ fontSize: 12 }}>{img.persons.join("、")}</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>AI置信度</span>
-                  <span className="text-xs font-mono font-semibold" style={{ color: img.confidence > 90 ? "var(--danger)" : "var(--warning)" }}>
-                    {img.confidence}%
-                  </span>
-                </div>
-              </div>
-              <div className="flex items-center justify-end" style={{ color: "var(--accent)" }}>
-                <span style={{ fontSize: 12 }}>点击审核</span>
-                <ChevronRight size={14} />
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function WorkOrderTab({
+  workOrders,
+  onOpenDetail,
   onReReview,
   reviewResults,
 }: {
+  workOrders: WorkOrder[];
+  onOpenDetail: (id: string) => void;
   onReReview: (id: string) => void;
   reviewResults: Record<string, "approved" | "rejected">;
 }) {
-  const [filter, setFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [siteFilter, setSiteFilter] = useState("all");
+  const [createdTimeFilter, setCreatedTimeFilter] = useState("all");
   const [query, setQuery] = useState("");
-  const filters = [
+  const statusOptions = [
     { key: "all", label: "全部" },
+    { key: "pending-deadline", label: "待设置期限" },
     { key: "rectifying", label: "整改中" },
-    { key: "re-review", label: "待复核" },
+    { key: "re-review", label: "待审核" },
     { key: "completed", label: "已完成" },
+  ];
+  const siteOptions = ["all", ...Array.from(new Set(workOrders.map((item) => item.site)))];
+  const createdTimeOptions = [
+    { key: "all", label: "全部时间" },
+    { key: "1h", label: "1小时内" },
+    { key: "4h", label: "4小时内" },
+    { key: "8h", label: "8小时内" },
   ];
 
   const filtered = workOrders.filter((w) => {
-    const matchesStatus = filter === "all" || w.status === filter;
+    const matchesStatus = statusFilter === "all" || w.status === statusFilter;
+    const matchesSite = siteFilter === "all" || w.site === siteFilter;
+    const matchesCreatedTime = matchesCreatedTimeRange(w.taskDetail.createdAt, createdTimeFilter);
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return matchesStatus;
+    if (!keyword) return matchesStatus && matchesSite && matchesCreatedTime;
 
-    const searchable = `${w.id}${w.type}${w.location}${w.deadline}${w.unit}`.toLowerCase();
-    return matchesStatus && searchable.includes(keyword);
+    const searchable = `${w.id}${w.type}${w.site}${w.location}${w.deadline}${w.unit}${w.taskDetail.createdAt}`.toLowerCase();
+    return matchesStatus && matchesSite && matchesCreatedTime && searchable.includes(keyword);
   });
 
   return (
@@ -1045,80 +1133,140 @@ function WorkOrderTab({
         </div>
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 px-4 py-3 flex-shrink-0 overflow-x-auto">
-        {filters.map((f) => (
-          <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
-            className="flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all"
-            style={{
-              background: filter === f.key ? "var(--primary)" : "var(--secondary)",
-              color: filter === f.key ? "#fff" : "var(--muted-foreground)",
-            }}
-          >
-            {f.label}
-          </button>
-        ))}
+      <div className="px-4 py-3 flex-shrink-0">
+        <div className="rounded-xl p-3 grid grid-cols-3 gap-2.5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <label className="space-y-1">
+            <div className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>状态</div>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <div className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>工地</div>
+            <select
+              value={siteFilter}
+              onChange={(event) => setSiteFilter(event.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              {siteOptions.map((option) => (
+                <option key={option} value={option}>{option === "all" ? "全部工地" : option}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <div className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>创建时间</div>
+            <select
+              value={createdTimeFilter}
+              onChange={(event) => setCreatedTimeFilter(event.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              {createdTimeOptions.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 space-y-3 pb-4">
-        {filtered.map((wo) => (
-          <div
-            key={wo.id}
-            className="rounded-xl p-4 space-y-3"
-            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <div className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>{wo.type}</div>
-                <div className="text-xs mt-0.5 font-mono" style={{ color: "var(--muted-foreground)" }}>{wo.id}</div>
-              </div>
-              <StatusBadge status={wo.status} small />
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                <MapPin size={12} /><span style={{ fontSize: 12 }}>{wo.location}</span>
-              </div>
-              <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
-                <Clock size={12} /><span style={{ fontSize: 12 }}>截止 {wo.deadline}</span>
-              </div>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="min-w-0">
-                <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>责任单位: {wo.unit}</span>
-                {wo.status === "re-review" && (
-                  <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-                    {reviewResults[wo.id] === "approved" && "复审通过，流程结束"}
-                    {reviewResults[wo.id] === "rejected" && "复审驳回，需重新整改"}
-                    {!reviewResults[wo.id] && wo.reviewStage === "ready-review" && "飞手影像已回传，待监理复审"}
-                    {!reviewResults[wo.id] && wo.reviewStage === "needs-assignment" && "待复核资料回传"}
+        {filtered.map((wo) => {
+          const violationImage = wo.violationSnapshot;
+
+          return (
+            <div
+              key={wo.id}
+              role="button"
+              tabIndex={0}
+              onClick={() => onOpenDetail(wo.id)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  onOpenDetail(wo.id);
+                }
+              }}
+              className="rounded-xl p-4 space-y-3 cursor-pointer active:opacity-80"
+              style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+            >
+              <div className="flex items-start gap-3">
+                <img
+                  src={violationImage.img}
+                  alt={wo.type}
+                  className="w-20 h-20 rounded-xl object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0 space-y-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>{wo.type}</div>
+                      <div className="text-xs mt-0.5 font-mono" style={{ color: "var(--muted-foreground)" }}>{wo.id}</div>
+                    </div>
+                    <SupervisorWorkOrderStatusBadge status={wo.status} />
                   </div>
-                )}
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="flex items-center gap-1" style={{ color: "var(--accent)" }}>
+                      <span style={{ fontSize: 12 }}>{wo.site}</span>
+                    </div>
+                    <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+                      <MapPin size={12} /><span style={{ fontSize: 12 }}>{wo.location}</span>
+                    </div>
+                    <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+                      <Clock size={12} /><span style={{ fontSize: 12 }}>截止 {formatWorkOrderDeadline(wo.deadline)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>责任单位: {wo.unit}</div>
+                      <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>创建时间: {wo.taskDetail.createdAt}</div>
+                      <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                        违规缩略图 · 点击查看工单详情
+                      </div>
+                      {wo.status === "pending-deadline" && (
+                        <div className="text-xs mt-1" style={{ color: "var(--warning)" }}>
+                          待监理设置整改期限，设置后工单进入整改中
+                        </div>
+                      )}
+                      {wo.status === "re-review" && (
+                        <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                          {reviewResults[wo.id] === "approved" && "复审通过，流程结束"}
+                          {reviewResults[wo.id] === "rejected" && "复审驳回，需重新整改"}
+                          {!reviewResults[wo.id] && wo.reviewStage === "ready-review" && "整改资料已提交，待监理审核"}
+                          {!reviewResults[wo.id] && wo.reviewStage === "needs-assignment" && "待整改资料补充"}
+                        </div>
+                      )}
+                    </div>
+                    {wo.status === "re-review" && !reviewResults[wo.id] && wo.reviewStage === "ready-review" ? (
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          onReReview(wo.id);
+                        }}
+                        className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 flex-shrink-0"
+                        style={{ background: "var(--primary)", color: "#fff" }}
+                      >
+                        <CheckCircle2 size={12} />
+                        进入复审
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1 flex-shrink-0" style={{ color: "var(--accent)" }}>
+                        <span style={{ fontSize: 12 }}>查看详情</span>
+                        <ChevronRight size={14} />
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
-              {wo.status === "re-review" && reviewResults[wo.id] === "approved" && (
-                <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "var(--success)", color: "#fff" }}>
-                  已通过
-                </span>
-              )}
-              {wo.status === "re-review" && reviewResults[wo.id] === "rejected" && (
-                <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "var(--danger)", color: "#fff" }}>
-                  已驳回
-                </span>
-              )}
-              {wo.status === "re-review" && !reviewResults[wo.id] && wo.reviewStage === "ready-review" && (
-                <button
-                  onClick={() => onReReview(wo.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 flex-shrink-0"
-                  style={{ background: "var(--primary)", color: "#fff" }}
-                >
-                  <CheckCircle2 size={12} />
-                  进入复审
-                </button>
-              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
         {filtered.length === 0 && (
           <div
             className="rounded-xl p-6 text-center text-sm"
@@ -1128,6 +1276,222 @@ function WorkOrderTab({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function WorkOrderDetail({
+  workOrder,
+  result,
+  onBack,
+  onReReview,
+  deadlineDraft,
+  onDeadlineDraftChange,
+  onDeadlineSave,
+}: {
+  workOrder: WorkOrder;
+  result?: "approved" | "rejected";
+  onBack: () => void;
+  onReReview: (id: string) => void;
+  deadlineDraft: string;
+  onDeadlineDraftChange: (id: string, value: string) => void;
+  onDeadlineSave: (id: string) => void;
+}) {
+  const violationImage = workOrder.violationSnapshot;
+  const materials = workOrder.reviewMaterials;
+  const aiResults = [
+    { label: violationImage.type, score: violationImage.confidence },
+    { label: "人员处于高风险作业区域", score: Math.max(62, violationImage.confidence - 16) },
+  ];
+
+  return (
+    <div className="flex flex-col h-full">
+      <NavBar title="工单详情" subtitle={workOrder.id} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto">
+        <div className="p-4 space-y-4">
+          <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{workOrder.type}</div>
+                <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                  {workOrder.location} · {workOrder.unit}
+                </div>
+              </div>
+              <SupervisorWorkOrderStatusBadge status={workOrder.status} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>截止时间</div>
+                <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{formatWorkOrderDeadline(workOrder.deadline)}</div>
+              </div>
+              <div>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>当前进度</div>
+                <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
+                  {workOrder.status === "pending-deadline" && "待设置整改期限"}
+                  {result === "approved" && workOrder.status === "completed" && "复审通过"}
+                  {result === "rejected" && workOrder.status === "rectifying" && "二次整改中"}
+                  {result === "rejected" && workOrder.status !== "rectifying" && "复审驳回"}
+                  {!result && workOrder.reviewStage === "ready-review" && "待审核"}
+                  {!result && workOrder.reviewStage === "needs-assignment" && "待整改资料补充"}
+                  {!result && !workOrder.reviewStage && workOrder.status !== "pending-deadline" && "整改处理中"}
+                </div>
+              </div>
+            </div>
+            <div className="rounded-lg p-3 text-xs leading-relaxed" style={{ background: "rgba(0,107,255,0.08)", color: "var(--secondary-foreground)" }}>
+              {workOrder.status === "pending-deadline"
+                ? "请先为该违规工单设置整改期限，设置完成后责任单位将按该期限推进整改。"
+                : "该详情为工单独立信息页，包含违规现场资料、AI识别结果以及后续整改资料。"}
+            </div>
+          </div>
+        </div>
+
+        <div className="px-4 pb-4 space-y-4">
+          {workOrder.status === "pending-deadline" && (
+            <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+              <div className="flex items-center gap-2 mb-3">
+                <CalendarRange size={16} style={{ color: "var(--primary)" }} />
+                <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>整改期限设置</div>
+              </div>
+              <div className="text-xs mb-2" style={{ color: "var(--muted-foreground)" }}>期限精确到年月日，设置后工单自动进入整改中。</div>
+              <input
+                type="date"
+                value={deadlineDraft}
+                onChange={(event) => onDeadlineDraftChange(workOrder.id, event.target.value)}
+                className="w-full rounded-xl px-3 py-3 outline-none text-sm"
+                style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+              />
+            </div>
+          )}
+
+          <div className="rounded-xl overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="relative">
+              <img src={violationImage.img} alt={violationImage.type} className="w-full object-cover" style={{ height: 220 }} />
+              <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(7,19,36,0.9) 0%, transparent 50%)" }} />
+              <div className="absolute bottom-3 left-4 right-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-white font-semibold">{violationImage.type}</span>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: "rgba(255,77,79,0.85)", color: "#fff" }}
+                  >
+                    AI置信度 {violationImage.confidence}%
+                  </span>
+                </div>
+              </div>
+              <div
+                className="absolute top-8 left-12 border-2 rounded-sm pointer-events-none"
+                style={{ width: 60, height: 80, borderColor: "var(--danger)", boxShadow: "0 0 8px rgba(255,77,79,0.5)" }}
+              >
+                <span className="absolute -top-4 left-0 text-xs font-mono" style={{ color: "var(--danger)" }}>违规人员</span>
+              </div>
+            </div>
+            <div className="p-4 space-y-3">
+              <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                <h3 className="text-sm font-semibold" style={{ color: "var(--accent)" }}>违规现场信息</h3>
+                <div className="grid grid-cols-2 gap-3">
+                  {[
+                    { label: "违规类型", value: violationImage.type, icon: <AlertTriangle size={14} /> },
+                    { label: "拍摄时间", value: violationImage.time, icon: <Clock size={14} /> },
+                    { label: "拍摄位置", value: violationImage.location, icon: <MapPin size={14} /> },
+                    { label: "涉事人员", value: violationImage.persons.join("、"), icon: <User size={14} /> },
+                  ].map((item) => (
+                    <div key={item.label} className="space-y-1">
+                      <div className="flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+                        {item.icon}
+                        <span style={{ fontSize: 11 }}>{item.label}</span>
+                      </div>
+                      <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="rounded-xl p-4" style={{ background: "var(--background)", border: "1px solid var(--border)" }}>
+                <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--accent)" }}>AI识别结果</h3>
+                <div className="space-y-2">
+                  {aiResults.map((item) => (
+                    <div key={item.label} className="flex items-center justify-between">
+                      <span className="text-sm" style={{ color: "var(--foreground)" }}>{item.label}</span>
+                      <div className="flex items-center gap-2">
+                        <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--secondary)" }}>
+                          <div className="h-full rounded-full" style={{ width: `${item.score}%`, background: "var(--primary)" }} />
+                        </div>
+                        <span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>{item.score}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+            <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>整改流转信息</div>
+            {materials ? (
+              <div className="space-y-3">
+                {[
+                  { key: "violation", data: materials.violation, accent: "var(--danger)" },
+                  { key: "rectification", data: materials.rectification, accent: "var(--caution)" },
+                ].map((item, index) => (
+                  <div key={item.key} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    <div className="relative">
+                      <img src={item.data.img} alt={item.data.title} className="w-full object-cover" style={{ height: 132 }} />
+                      <div
+                        className="absolute left-3 top-3 text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: item.accent, color: "#fff" }}
+                      >
+                        {index + 1}
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{item.data.title}</div>
+                        <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{item.data.time}</div>
+                      </div>
+                      <p className="text-xs leading-relaxed mt-1" style={{ color: "var(--muted-foreground)" }}>
+                        {item.data.desc}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                当前工单暂无整改流转资料，后续整改反馈资料将在此处汇总展示。
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {workOrder.status === "pending-deadline" && (
+        <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+          <button
+            type="button"
+            disabled={!deadlineDraft}
+            onClick={() => onDeadlineSave(workOrder.id)}
+            className="w-full py-3 rounded-xl font-semibold text-sm"
+            style={{
+              background: deadlineDraft ? "var(--primary)" : "var(--secondary)",
+              color: deadlineDraft ? "#fff" : "var(--muted-foreground)",
+            }}
+          >
+            确认整改期限
+          </button>
+        </div>
+      )}
+
+      {workOrder.status === "re-review" && !result && workOrder.reviewStage === "ready-review" && (
+        <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+          <button
+            type="button"
+            onClick={() => onReReview(workOrder.id)}
+            className="w-full py-3 rounded-xl font-semibold text-sm"
+            style={{ background: "var(--primary)", color: "#fff" }}
+          >
+            进入复审
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -1498,15 +1862,6 @@ function DashboardTab({ onExport }: { onExport: () => void }) {
         </div>
       </div>
 
-      <div className="rounded-xl p-4 flex items-center gap-3"
-        style={{ background: "rgba(47,125,246,0.08)", border: "1px solid rgba(47,125,246,0.2)" }}>
-        <Shield size={20} color="var(--primary)" />
-        <div>
-          <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>安全生产整体评分</div>
-          <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>本月综合评级: <span style={{ color: "var(--success)", fontWeight: 600 }}>良好 B+</span></div>
-        </div>
-        <div className="ml-auto font-bold" style={{ fontSize: 28, color: "var(--success)" }}>82</div>
-      </div>
     </div>
   );
 }
@@ -1776,36 +2131,35 @@ function MessageTab({
 }
 
 function HomeTab({
-  onReviewClick,
+  workOrders,
   onWorkOrderClick,
+  onWorkOrderOpen,
   onFlightTaskClick,
-  onDashboardClick,
-  onExportClick,
-  onProfileClick,
-  pendingCount,
+  pendingDeadlineCount,
   pendingFlightTaskCount,
   pendingReReviewCount,
 }: {
-  onReviewClick: () => void;
+  workOrders: WorkOrder[];
   onWorkOrderClick: () => void;
+  onWorkOrderOpen: (id: string) => void;
   onFlightTaskClick: () => void;
-  onDashboardClick: () => void;
-  onExportClick: () => void;
-  onProfileClick: () => void;
-  pendingCount: number;
+  pendingDeadlineCount: number;
   pendingFlightTaskCount: number;
   pendingReReviewCount: number;
 }) {
+  const rectifyingCount = workOrders.filter((item) => item.status === "rectifying").length;
+  const completedCount = workOrders.filter((item) => item.status === "completed").length;
+
   const overviewItems = [
     {
-      label: "待审核图片",
-      desc: "AI告警确认",
-      value: pendingCount,
-      icon: <Camera size={18} />,
-      color: "var(--caution)",
+      label: "待设置期限",
+      desc: "设置整改期限",
+      value: pendingDeadlineCount,
+      icon: <CalendarRange size={18} />,
+      color: "var(--warning)",
       bg: "rgba(255,224,71,0.16)",
       border: "rgba(255,177,0,0.32)",
-      action: onReviewClick,
+      action: onWorkOrderClick,
     },
     {
       label: "待指派任务",
@@ -1819,40 +2173,13 @@ function HomeTab({
     },
     {
       label: "待复审工单",
-      desc: "影像比对复核",
+      desc: "整改资料审核",
       value: pendingReReviewCount,
       icon: <ClipboardList size={18} />,
       color: "var(--danger)",
       bg: "rgba(255,74,74,0.10)",
       border: "rgba(255,74,74,0.22)",
       action: onWorkOrderClick,
-    },
-  ];
-
-  const secondaryEntries = [
-    {
-      label: "数据看板",
-      desc: "项目指标、趋势与整改效率",
-      icon: <PieChart size={20} />,
-      color: "var(--success)",
-      bg: "rgba(53,208,127,0.12)",
-      action: onDashboardClick,
-    },
-    {
-      label: "历史数据导出",
-      desc: "按月份导出整改工单与看板指标",
-      icon: <Download size={20} />,
-      color: "var(--primary)",
-      bg: "rgba(0,107,255,0.10)",
-      action: onExportClick,
-    },
-    {
-      label: "我的",
-      desc: "账号信息、监管项目与团队概况",
-      icon: <User size={20} />,
-      color: "var(--foreground)",
-      bg: "rgba(100,115,134,0.10)",
-      action: onProfileClick,
     },
   ];
 
@@ -1902,51 +2229,28 @@ function HomeTab({
         </div>
       </div>
 
-      <div className="px-4 mt-4">
-        <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>次级入口</h3>
-        <div className="space-y-2">
-          {secondaryEntries.map((item) => (
-          <button
-            key={item.label}
-            onClick={item.action}
-            className="w-full rounded-xl p-3 active:opacity-70 text-left flex items-center gap-3"
-            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
-          >
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.bg, color: item.color }}>
-              {item.icon}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-semibold truncate" style={{ color: "var(--foreground)" }}>{item.label}</div>
-              <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted-foreground)" }}>{item.desc}</div>
-            </div>
-            <ChevronRight size={16} style={{ color: "var(--muted-foreground)" }} />
-          </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Latest alerts */}
+      {/* Latest Work Orders */}
       <div className="px-4 mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>最新违规告警</h3>
-          <button onClick={onReviewClick} style={{ color: "var(--accent)", fontSize: 12 }}>查看全部</button>
+          <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>最新工单动态</h3>
+          <button onClick={onWorkOrderClick} style={{ color: "var(--accent)", fontSize: 12 }}>查看全部</button>
         </div>
         <div className="space-y-2">
-          {pendingImages.slice(0, 2).map((img) => (
+          {workOrders.slice(0, 2).map((workOrder) => (
             <button
-              key={img.id}
-              onClick={onReviewClick}
+              key={workOrder.id}
+              onClick={() => onWorkOrderOpen(workOrder.id)}
               className="w-full rounded-xl p-3 flex items-center gap-3 text-left active:opacity-70"
               style={{ background: "var(--card)", border: "1px solid var(--border)" }}
             >
               <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                <img src={img.img} alt="" className="w-full h-full object-cover" />
+                <img src={workOrder.violationSnapshot.img} alt="" className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate" style={{ color: "var(--foreground)" }}>{img.type}</div>
-                <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{img.location}</div>
+                <div className="font-medium text-sm truncate" style={{ color: "var(--foreground)" }}>{workOrder.type}</div>
+                <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{workOrder.location}</div>
               </div>
-              <StatusBadge status="pending" small />
+              <SupervisorWorkOrderStatusBadge status={workOrder.status} />
             </button>
           ))}
         </div>
@@ -1956,11 +2260,12 @@ function HomeTab({
       <div className="px-4 mt-4 mb-4">
         <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>工单状态概览</h3>
         <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-          <div className="grid grid-cols-3 divide-x" style={{ divideColor: "var(--border)" }}>
+          <div className="grid grid-cols-4 divide-x" style={{ divideColor: "var(--border)" }}>
             {[
-              { label: "整改中", value: 2, color: "var(--caution)" },
-              { label: "待复核", value: 1, color: "var(--info)" },
-              { label: "已完成", value: 2, color: "var(--success)" },
+              { label: "待设置期限", value: pendingDeadlineCount, color: "var(--warning)" },
+              { label: "整改中", value: rectifyingCount, color: "var(--caution)" },
+              { label: "待审核", value: pendingReReviewCount, color: "var(--info)" },
+              { label: "已完成", value: completedCount, color: "var(--success)" },
             ].map((item) => (
               <div key={item.label} className="flex flex-col items-center py-1">
                 <span className="font-bold" style={{ fontSize: 22, color: item.color }}>{item.value}</span>
@@ -1974,7 +2279,11 @@ function HomeTab({
   );
 }
 
-function SupervisorProfileTab() {
+function SupervisorProfileTab({ workOrders }: { workOrders: WorkOrder[] }) {
+  const pendingDeadlineCount = workOrders.filter((item) => item.status === "pending-deadline").length;
+  const rectifyingCount = workOrders.filter((item) => item.status === "rectifying").length;
+  const reReviewCount = workOrders.filter((item) => item.status === "re-review").length;
+
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
       <div className="w-20 h-20 rounded-full flex items-center justify-center font-bold"
@@ -1986,7 +2295,9 @@ function SupervisorProfileTab() {
       <div className="w-full rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
         {[
           { label: "监管项目", value: "阳光城 A-C地块" },
-          { label: "待审核图片", value: `${pendingImages.length} 条` },
+          { label: "待设置期限工单", value: `${pendingDeadlineCount} 单` },
+          { label: "整改中工单", value: `${rectifyingCount} 单` },
+          { label: "待审核工单", value: `${reReviewCount} 单` },
           { label: "整改工单", value: `${workOrders.length} 单` },
           { label: "飞行团队", value: `${droneTeams.length} 支` },
         ].map((item) => (
@@ -2004,7 +2315,7 @@ function SupervisorProfileTab() {
 
 export function SupervisorApp() {
   const [activeTab, setActiveTab] = useState("home");
-  const [detail, setDetail] = useState<typeof pendingImages[0] | null>(null);
+  const [workOrderDetailId, setWorkOrderDetailId] = useState<string | null>(null);
   const [assignId, setAssignId] = useState<string | null>(null);
   const [reReviewId, setReReviewId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
@@ -2013,10 +2324,30 @@ export function SupervisorApp() {
   const [flightTaskDraft, setFlightTaskDraft] = useState<Partial<FlightTask> | null>(null);
   const [assigningFlightTaskId, setAssigningFlightTaskId] = useState<string | null>(null);
   const [reviewResults, setReviewResults] = useState<Record<string, "approved" | "rejected">>({});
+  const [workOrderOverrides, setWorkOrderOverrides] = useState<Record<string, Partial<Pick<WorkOrder, "status" | "deadline" | "reviewStage">> & { rectificationStatusText?: string; rectificationSummary?: string }>>({});
+  const [deadlineDrafts, setDeadlineDrafts] = useState<Record<string, string>>(
+    Object.fromEntries(workOrders.map((item) => [item.id, item.deadline])),
+  );
   const [messageThreads, setMessageThreads] = useState<SupervisorLeaderThread[]>(supervisorLeaderThreads);
-  const messageUnread = messageThreads.reduce((sum, thread) => sum + thread.unread, 0);
+  // 已隐藏功能：监理端通信未在当前版本开放入口
+  // const messageUnread = messageThreads.reduce((sum, thread) => sum + thread.unread, 0);
+  const resolvedWorkOrders = workOrders.map((order) => {
+    const override = workOrderOverrides[order.id];
+    return {
+      ...order,
+      status: override?.status ?? order.status,
+      deadline: override?.deadline ?? order.deadline,
+      reviewStage: override?.reviewStage ?? order.reviewStage,
+      rectificationInfo: {
+        ...order.rectificationInfo,
+        statusText: override?.rectificationStatusText ?? order.rectificationInfo.statusText,
+        summary: override?.rectificationSummary ?? order.rectificationInfo.summary,
+      },
+    };
+  });
   const pendingFlightTaskCount = flightTasks.filter((task) => task.status === "pending-assignment").length;
-  const pendingReReviewCount = workOrders.filter(
+  const pendingDeadlineCount = resolvedWorkOrders.filter((order) => order.status === "pending-deadline").length;
+  const pendingReReviewCount = resolvedWorkOrders.filter(
     (order) => order.status === "re-review" && order.reviewStage === "ready-review" && !reviewResults[order.id],
   ).length;
 
@@ -2048,7 +2379,8 @@ export function SupervisorApp() {
     if (!nextThread) return;
 
     upsertTeamThread(nextThread);
-    setActiveTab("message");
+    // 已隐藏功能：监理端通信页自动跳转已关闭
+    // setActiveTab("message");
   };
 
   const handleFlightTaskCreated = (task: FlightTask) => {
@@ -2086,43 +2418,68 @@ export function SupervisorApp() {
     const nextThread = createAssignedLeaderThread(
       teamId,
       taskId,
-      `${team.leader}，飞行任务 ${taskId} 已派发给 ${team.name}。位置：${task.location}，截止：${task.deadline}，请安排飞手执行并回传影像资料。`,
+      `${team.leader}，巡检任务 ${taskId} 已派发给 ${team.name}。位置：${task.location}，截止：${task.deadline}，请安排飞手执行并回传巡检影像与现场记录。`,
     );
     if (nextThread) upsertTeamThread(nextThread);
   };
 
+  const handleDeadlineDraftChange = (id: string, value: string) => {
+    setDeadlineDrafts((current) => ({ ...current, [id]: value }));
+  };
+
+  const handleDeadlineSave = (id: string) => {
+    const deadline = deadlineDrafts[id];
+    if (!deadline) return;
+    setWorkOrderOverrides((current) => ({
+      ...current,
+      [id]: {
+        ...(current[id] ?? {}),
+        status: "rectifying",
+        deadline,
+        reviewStage: undefined,
+        rectificationStatusText: "整改进行中",
+        rectificationSummary: `监理已设置整改期限为 ${deadline}，责任单位需在期限内完成整改并提交反馈资料。`,
+      },
+    }));
+  };
+
   const handleReReviewDecision = (id: string, decision: "approved" | "rejected") => {
     setReviewResults((current) => ({ ...current, [id]: decision }));
+    const currentWorkOrder = resolvedWorkOrders.find((item) => item.id === id);
+    const currentDeadline = currentWorkOrder?.deadline ?? "";
+    setWorkOrderOverrides((current) => ({
+      ...current,
+      [id]: {
+        ...(current[id] ?? {}),
+        status: decision === "approved" ? "completed" : "rectifying",
+        deadline: currentDeadline,
+        reviewStage: undefined,
+        rectificationStatusText: decision === "approved" ? "整改完成" : "二次整改中",
+        rectificationSummary: decision === "approved"
+          ? "监理审核通过，工单流程已完成。"
+          : `监理审核未通过，责任单位需按原整改期限${currentDeadline ? ` ${currentDeadline}` : ""}继续完成二次整改并重新提交资料。`,
+      },
+    }));
   };
 
   const tabs: TabItem[] = [
     { key: "home", label: "首页", icon: <LayoutGrid size={20} /> },
     { key: "workorder", label: "工单审核", icon: <ClipboardList size={20} /> },
-    { key: "review", label: "图片审核", icon: <Camera size={20} />, badge: pendingImages.length },
     { key: "flight", label: "指派任务", icon: <Navigation size={20} />, badge: pendingFlightTaskCount },
-    { key: "message", label: "消息", icon: <MessageCircle size={20} />, badge: messageUnread },
+    { key: "dashboard", label: "数据看板", icon: <TrendingUp size={20} /> },
+    { key: "profile", label: "我的", icon: <User size={20} /> },
+    // 已隐藏功能：监理端通信入口已隐藏
+    // { key: "message", label: "消息", icon: <MessageCircle size={20} />, badge: messageUnread },
   ];
   const pageTitles: Record<string, string> = {
     home: "首页",
     flight: "指派任务",
     message: "消息",
     profile: "我的",
-    review: "图片审核",
     workorder: "工单审核",
     dashboard: "数据看板",
   };
   const bottomActive = tabs.some((tab) => tab.key === activeTab) ? activeTab : "home";
-
-  if (detail) {
-    return (
-      <ImageReviewDetail
-        img={detail}
-        onBack={() => setDetail(null)}
-        onConfirm={() => setTimeout(() => setDetail(null), 1800)}
-        onReject={() => setTimeout(() => setDetail(null), 1400)}
-      />
-    );
-  }
 
   if (assignId) {
     return (
@@ -2132,6 +2489,26 @@ export function SupervisorApp() {
         onAssigned={handleTeamAssigned}
       />
     );
+  }
+
+  if (workOrderDetailId) {
+    const workOrder = resolvedWorkOrders.find((item) => item.id === workOrderDetailId);
+    if (workOrder) {
+      return (
+        <WorkOrderDetail
+          workOrder={workOrder}
+          result={reviewResults[workOrder.id]}
+          onBack={() => setWorkOrderDetailId(null)}
+          onReReview={(id) => {
+            setWorkOrderDetailId(null);
+            setReReviewId(id);
+          }}
+          deadlineDraft={deadlineDrafts[workOrder.id] ?? ""}
+          onDeadlineDraftChange={handleDeadlineDraftChange}
+          onDeadlineSave={handleDeadlineSave}
+        />
+      );
+    }
   }
 
   if (creatingFlightTask) {
@@ -2161,7 +2538,7 @@ export function SupervisorApp() {
   }
 
   if (reReviewId) {
-    const workOrder = workOrders.find((item) => item.id === reReviewId);
+    const workOrder = resolvedWorkOrders.find((item) => item.id === reReviewId);
     if (workOrder) {
       return (
         <ReReviewDetail
@@ -2180,12 +2557,7 @@ export function SupervisorApp() {
 
   return (
     <div className="flex flex-col h-full">
-      {activeTab !== "home" && (
-        <NavBar
-          title={pageTitles[activeTab] ?? ""}
-          badge={activeTab === "review" ? pendingImages.length : 0}
-        />
-      )}
+      {activeTab !== "home" && <NavBar title={pageTitles[activeTab] ?? ""} />}
       {activeTab === "home" && (
         <div className="px-4 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
           <div>
@@ -2203,13 +2575,11 @@ export function SupervisorApp() {
       <div className="flex-1 overflow-hidden flex flex-col">
         {activeTab === "home" && (
         <HomeTab
-          onReviewClick={() => setActiveTab("review")}
+          workOrders={resolvedWorkOrders}
           onWorkOrderClick={() => setActiveTab("workorder")}
+          onWorkOrderOpen={(id) => setWorkOrderDetailId(id)}
           onFlightTaskClick={() => setActiveTab("flight")}
-          onDashboardClick={() => setActiveTab("dashboard")}
-          onExportClick={() => setExporting(true)}
-          onProfileClick={() => setActiveTab("profile")}
-          pendingCount={pendingImages.length}
+          pendingDeadlineCount={pendingDeadlineCount}
           pendingFlightTaskCount={pendingFlightTaskCount}
           pendingReReviewCount={pendingReReviewCount}
         />
@@ -2221,18 +2591,17 @@ export function SupervisorApp() {
             onAssign={(id) => setAssigningFlightTaskId(id)}
           />
         )}
-        {activeTab === "review" && (
-          <ReviewTab onOpenDetail={(img) => setDetail(img)} />
-        )}
         {activeTab === "workorder" && (
           <WorkOrderTab
+            workOrders={resolvedWorkOrders}
+            onOpenDetail={(id) => setWorkOrderDetailId(id)}
             onReReview={(id) => setReReviewId(id)}
             reviewResults={reviewResults}
           />
         )}
         {activeTab === "message" && <MessageTab threads={messageThreads} setThreads={setMessageThreads} />}
         {activeTab === "dashboard" && <DashboardTab onExport={() => setExporting(true)} />}
-        {activeTab === "profile" && <SupervisorProfileTab />}
+        {activeTab === "profile" && <SupervisorProfileTab workOrders={resolvedWorkOrders} />}
       </div>
       <BottomTab tabs={tabs} active={bottomActive} onChange={setActiveTab} />
     </div>
