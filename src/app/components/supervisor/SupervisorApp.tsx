@@ -5,9 +5,10 @@ import { StatusBadge } from "../shared/StatusBadge";
 import {
   LayoutGrid, ClipboardList, Send, PieChart,
   Camera, MapPin, Clock, User, ChevronRight,
-  CheckCircle2, XCircle, Drone, AlertTriangle,
-  Zap, Shield, TrendingUp, Users, Navigation,
-  MessageCircle, Search,
+  CheckCircle2, XCircle, AlertTriangle,
+  Zap, Shield, TrendingUp, Users, Navigation, Plus,
+  MessageCircle, Search, PanelLeftOpen, PanelLeftClose,
+  CalendarRange, Download, FileSpreadsheet, DatabaseBackup,
 } from "lucide-react";
 
 // ─── Mock Data ───────────────────────────────────────────────
@@ -107,6 +108,61 @@ const droneTeams = [
   { id: "T004", name: "云瞰应急组", leader: "陈启航", available: 1, total: 3, status: "待命" },
 ];
 
+type FlightTask = {
+  id: string;
+  workOrderId?: string;
+  type: string;
+  location: string;
+  gps: string;
+  deadline: string;
+  status: "pending-assignment" | "assigned" | "completed";
+  supervisorName: string;
+  requirement: string;
+  assignedTeamId?: string;
+  assignedTeamName?: string;
+  assignedLeader?: string;
+  assignedAt?: string;
+};
+
+const initialFlightTasks: FlightTask[] = [
+  {
+    id: "FT-20250612-001",
+    workOrderId: "WO-20250612-005",
+    type: "整改复核飞拍",
+    location: "C区4号楼-临边作业面",
+    gps: "30.566218, 114.307912",
+    deadline: "2025-06-13 16:00",
+    status: "pending-assignment",
+    supervisorName: "李建国",
+    requirement: "复核C区4号楼临边防护恢复情况，需拍摄临边护栏、警示标识和作业人员活动区域。",
+  },
+  {
+    id: "FT-20250612-002",
+    type: "日常巡查飞拍",
+    location: "A区3号楼-材料堆场",
+    gps: "30.568120, 114.304560",
+    deadline: "2025-06-12 18:00",
+    status: "pending-assignment",
+    supervisorName: "李建国",
+    requirement: "巡检材料堆场消防通道、临时用电和人员通行路线，回传全景与重点隐患近景。",
+  },
+  {
+    id: "FT-20250611-003",
+    workOrderId: "WO-20250610-004",
+    type: "整改复核飞拍",
+    location: "A区2号楼-脚手架外立面",
+    gps: "30.565600, 114.302880",
+    deadline: "2025-06-11 15:00",
+    status: "assigned",
+    supervisorName: "李建国",
+    requirement: "复核脚手架防护网补设情况，重点拍摄二至四层外立面连续防护。",
+    assignedTeamId: "T002",
+    assignedTeamName: "鹰眼二队",
+    assignedLeader: "张明远",
+    assignedAt: "2025-06-11 09:20",
+  },
+];
+
 type ChatMessage = {
   id: string;
   from: "me" | "them";
@@ -161,7 +217,7 @@ const supervisorLeaderThreads: SupervisorLeaderThread[] = [
   },
 ];
 
-function createAssignedLeaderThread(teamId: string, workOrderId: string): SupervisorLeaderThread | null {
+function createAssignedLeaderThread(teamId: string, sourceId: string, messageText?: string): SupervisorLeaderThread | null {
   const team = droneTeams.find((item) => item.id === teamId);
   if (!team) return null;
 
@@ -172,14 +228,14 @@ function createAssignedLeaderThread(teamId: string, workOrderId: string): Superv
     assigned: true,
     status: team.status === "执行中" ? "busy" : "online",
     tag: "已指派",
-    workOrder: workOrderId,
+    workOrder: sourceId,
     unread: 0,
     lastActive: "刚刚",
     messages: [
       {
         id: `m-${Date.now()}`,
         from: "me",
-        text: `${team.leader}，${workOrderId} 已指派给 ${team.name}，请安排飞手并保持任务同步。`,
+        text: messageText ?? `${team.leader}，${sourceId} 已指派给 ${team.name}，请安排飞手并保持任务同步。`,
         time: "刚刚",
       },
     ],
@@ -396,6 +452,360 @@ function AssignDroneModal({
   );
 }
 
+function FlightTaskStatusBadge({ status }: { status: FlightTask["status"] }) {
+  const map = {
+    "pending-assignment": { label: "待指派", bg: "rgba(255,224,71,0.16)", color: "var(--caution)" },
+    assigned: { label: "已派发", bg: "rgba(0,107,255,0.12)", color: "var(--primary)" },
+    completed: { label: "已完成", bg: "rgba(53,208,127,0.14)", color: "var(--success)" },
+  };
+  const item = map[status];
+  return (
+    <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: item.bg, color: item.color }}>
+      {item.label}
+    </span>
+  );
+}
+
+function FlightTaskTab({
+  tasks,
+  onCreate,
+  onAssign,
+}: {
+  tasks: FlightTask[];
+  onCreate: () => void;
+  onAssign: (id: string) => void;
+}) {
+  const pendingTasks = tasks.filter((task) => task.status === "pending-assignment");
+  const assignedTasks = tasks.filter((task) => task.status !== "pending-assignment");
+
+  const renderTaskCard = (task: FlightTask) => (
+    <div key={task.id} className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{task.type}</div>
+          <div className="text-xs font-mono mt-0.5" style={{ color: "var(--muted-foreground)" }}>{task.id}</div>
+        </div>
+        <FlightTaskStatusBadge status={task.status} />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <div className="text-xs flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+            <MapPin size={11} />巡检位置
+          </div>
+          <div className="text-sm font-medium mt-1" style={{ color: "var(--foreground)" }}>{task.location}</div>
+          <div className="text-xs font-mono mt-0.5" style={{ color: "var(--accent)" }}>{task.gps}</div>
+        </div>
+        <div>
+          <div className="text-xs flex items-center gap-1" style={{ color: "var(--muted-foreground)" }}>
+            <Clock size={11} />指定截止时间
+          </div>
+          <div className="text-sm font-medium mt-1" style={{ color: "var(--caution)" }}>{task.deadline}</div>
+        </div>
+      </div>
+
+      <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{task.requirement}</p>
+
+      <div className="flex items-center justify-between gap-3 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+        <div className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
+          {task.workOrderId ? `关联工单：${task.workOrderId}` : "自主巡检任务"}
+          {task.assignedTeamName ? ` · ${task.assignedTeamName}` : ""}
+        </div>
+        {task.status === "pending-assignment" ? (
+          <button
+            type="button"
+            onClick={() => onAssign(task.id)}
+            className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 flex-shrink-0"
+            style={{ background: "var(--primary)", color: "#fff" }}
+          >
+            <Users size={12} />
+            指派团队
+          </button>
+        ) : (
+          <span className="text-xs flex-shrink-0" style={{ color: "var(--primary)" }}>{task.assignedLeader}</span>
+        )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <div className="p-4 flex-shrink-0 space-y-4">
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { label: "待指派", value: pendingTasks.length, color: "var(--caution)", bg: "rgba(255,224,71,0.12)" },
+            { label: "已派发", value: assignedTasks.length, color: "var(--primary)", bg: "rgba(0,107,255,0.10)" },
+            { label: "团队数", value: droneTeams.length, color: "var(--success)", bg: "rgba(53,208,127,0.10)" },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl p-3 text-center" style={{ background: item.bg }}>
+              <div className="font-bold" style={{ fontSize: 22, color: item.color }}>{item.value}</div>
+              <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+            </div>
+          ))}
+        </div>
+
+        <button
+          type="button"
+          onClick={onCreate}
+          className="w-full rounded-xl p-4 flex items-center gap-3 text-left active:opacity-80"
+          style={{ background: "linear-gradient(135deg, rgba(0,107,255,0.12), rgba(95,180,255,0.10))", border: "1px solid rgba(0,107,255,0.26)" }}
+        >
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "var(--primary)", color: "#fff" }}>
+            <Plus size={20} />
+          </div>
+          <div className="flex-1">
+            <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>创建飞行任务</div>
+            <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>录入巡检位置、GPS、指定截止时间和拍摄要求</div>
+          </div>
+          <ChevronRight size={16} color="var(--primary)" />
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
+        <section>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>待指派飞行任务</h3>
+            <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "rgba(255,224,71,0.14)", color: "var(--caution)" }}>
+              {pendingTasks.length} 项
+            </span>
+          </div>
+          <div className="space-y-3">
+            {pendingTasks.map(renderTaskCard)}
+            {pendingTasks.length === 0 && (
+              <div className="rounded-xl p-6 text-center text-sm" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
+                暂无待指派飞行任务
+              </div>
+            )}
+          </div>
+        </section>
+
+        {assignedTasks.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>已派发飞行任务</h3>
+            <div className="space-y-3">
+              {assignedTasks.map(renderTaskCard)}
+            </div>
+          </section>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FlightTaskCreatePage({
+  onBack,
+  onCreate,
+  initialTask,
+}: {
+  onBack: () => void;
+  onCreate: (task: FlightTask) => void;
+  initialTask?: Partial<FlightTask> | null;
+}) {
+  const [location, setLocation] = useState(initialTask?.location ?? "B区基坑-东侧");
+  const [gps, setGps] = useState(initialTask?.gps ?? "30.567890, 114.305678");
+  const [deadline, setDeadline] = useState("2025-06-12T16:00");
+  const [requirement, setRequirement] = useState(initialTask?.requirement ?? "对指定区域进行飞拍巡检，回传全景、近景和带GPS水印的影像资料。");
+  const canSubmit = location.trim() && gps.trim() && deadline && requirement.trim();
+
+  const submit = () => {
+    if (!canSubmit) return;
+    const normalizedDeadline = deadline.replace("T", " ");
+    onCreate({
+      id: `FT-${Date.now().toString().slice(-8)}`,
+      type: initialTask?.type ?? "飞行巡检任务",
+      location,
+      gps,
+      deadline: normalizedDeadline,
+      status: "pending-assignment",
+      supervisorName: "李建国",
+      requirement,
+    });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <NavBar title="创建飞行任务" subtitle="巡检位置、截止时间与拍摄要求" onBack={onBack} />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2">
+            <MapPin size={17} color="var(--primary)" />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>巡检位置信息</h3>
+          </div>
+          <label className="block">
+            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>巡检位置</span>
+            <input
+              value={location}
+              onChange={(event) => setLocation(event.target.value)}
+              className="mt-1 w-full rounded-xl px-3 py-2.5 outline-none text-sm"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>GPS坐标</span>
+            <input
+              value={gps}
+              onChange={(event) => setGps(event.target.value)}
+              className="mt-1 w-full rounded-xl px-3 py-2.5 outline-none text-sm font-mono"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            />
+          </label>
+          <label className="block">
+            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>指定截止时间</span>
+            <input
+              type="datetime-local"
+              value={deadline}
+              onChange={(event) => setDeadline(event.target.value)}
+              className="mt-1 w-full rounded-xl px-3 py-2.5 outline-none text-sm"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            />
+          </label>
+        </div>
+
+        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>拍摄要求</div>
+          <textarea
+            value={requirement}
+            onChange={(event) => setRequirement(event.target.value)}
+            rows={5}
+            className="w-full rounded-xl p-3 text-sm resize-none outline-none"
+            style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+          />
+        </div>
+      </div>
+
+      <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+        <button
+          type="button"
+          disabled={!canSubmit}
+          onClick={submit}
+          className="w-full py-3 rounded-xl font-semibold text-sm"
+          style={{
+            background: canSubmit ? "var(--primary)" : "var(--secondary)",
+            color: canSubmit ? "#fff" : "var(--muted-foreground)",
+          }}
+        >
+          创建并进入待指派
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function AssignFlightTaskModal({
+  task,
+  onClose,
+  onAssigned,
+}: {
+  task: FlightTask;
+  onClose: () => void;
+  onAssigned: (teamId: string, taskId: string) => void;
+}) {
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
+  const selectedTeamInfo = droneTeams.find((team) => team.id === selectedTeam);
+
+  const submit = () => {
+    if (!selectedTeam) return;
+    onAssigned(selectedTeam, task.id);
+    setSubmitted(true);
+  };
+
+  if (submitted) {
+    return (
+      <div className="flex flex-col h-full">
+        <NavBar title="派发飞行任务" onBack={onClose} />
+        <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(53,208,127,0.15)" }}>
+            <CheckCircle2 size={32} color="var(--success)" />
+          </div>
+          <div className="text-center">
+            <div className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>派发成功</div>
+            <div className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
+              已通知{selectedTeamInfo?.leader ?? "飞手团队负责人"}分配团队飞手，会话已开启
+            </div>
+          </div>
+          <button onClick={onClose} className="mt-4 px-8 py-2.5 rounded-xl font-semibold text-sm"
+            style={{ background: "var(--primary)", color: "#fff" }}>
+            完成
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full">
+      <NavBar title="派发飞行任务" subtitle={task.id} onBack={onClose} />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-xl p-4" style={{ background: "rgba(0,107,255,0.08)", border: "1px solid rgba(0,107,255,0.22)" }}>
+          <div className="text-xs font-semibold mb-2" style={{ color: "var(--primary)" }}>待派发任务</div>
+          <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{task.type}</div>
+          <div className="flex items-center gap-1 mt-2" style={{ color: "var(--muted-foreground)" }}>
+            <MapPin size={12} /><span style={{ fontSize: 12 }}>{task.location}</span>
+          </div>
+          <div className="flex items-center gap-1 mt-1" style={{ color: "var(--caution)" }}>
+            <Clock size={12} /><span style={{ fontSize: 12 }}>截止 {task.deadline}</span>
+          </div>
+          <p className="text-xs leading-relaxed mt-2 pt-2" style={{ color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}>
+            {task.requirement}
+          </p>
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--muted-foreground)" }}>选择飞行团队</h3>
+          <div className="space-y-2">
+            {droneTeams.map((team) => (
+              <button
+                key={team.id}
+                type="button"
+                onClick={() => setSelectedTeam(team.id)}
+                className="w-full rounded-xl p-4 text-left transition-all"
+                style={{
+                  background: selectedTeam === team.id ? "rgba(0,107,255,0.12)" : "var(--card)",
+                  border: `1.5px solid ${selectedTeam === team.id ? "var(--primary)" : "var(--border)"}`,
+                }}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>{team.name}</div>
+                    <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                      负责人: {team.leader} · 可用飞手 {team.available}/{team.total}
+                    </div>
+                  </div>
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full"
+                    style={{
+                      background: team.status === "待命" ? "rgba(53,208,127,0.15)" : "rgba(0,107,255,0.12)",
+                      color: team.status === "待命" ? "var(--success)" : "var(--primary)",
+                    }}
+                  >
+                    {team.status}
+                  </span>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+        <button
+          type="button"
+          disabled={!selectedTeam}
+          onClick={submit}
+          className="w-full py-3 rounded-xl font-semibold text-sm"
+          style={{
+            background: selectedTeam ? "var(--primary)" : "var(--secondary)",
+            color: selectedTeam ? "#fff" : "var(--muted-foreground)",
+          }}
+        >
+          确认派发
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function ReReviewDetail({
   workOrder,
   result,
@@ -596,11 +1006,9 @@ function ReviewTab({ onOpenDetail }: { onOpenDetail: (img: typeof pendingImages[
 }
 
 function WorkOrderTab({
-  onAssign,
   onReReview,
   reviewResults,
 }: {
-  onAssign: (id: string) => void;
   onReReview: (id: string) => void;
   reviewResults: Record<string, "approved" | "rejected">;
 }) {
@@ -684,7 +1092,7 @@ function WorkOrderTab({
                     {reviewResults[wo.id] === "approved" && "复审通过，流程结束"}
                     {reviewResults[wo.id] === "rejected" && "复审驳回，需重新整改"}
                     {!reviewResults[wo.id] && wo.reviewStage === "ready-review" && "飞手影像已回传，待监理复审"}
-                    {!reviewResults[wo.id] && wo.reviewStage === "needs-assignment" && "待指派飞行团队复核"}
+                    {!reviewResults[wo.id] && wo.reviewStage === "needs-assignment" && "待复核资料回传"}
                   </div>
                 )}
               </div>
@@ -708,16 +1116,6 @@ function WorkOrderTab({
                   进入复审
                 </button>
               )}
-              {wo.status === "re-review" && !reviewResults[wo.id] && wo.reviewStage !== "ready-review" && (
-                <button
-                  onClick={() => onAssign(wo.id)}
-                  className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 flex-shrink-0"
-                  style={{ background: "rgba(95,180,255,0.15)", color: "var(--accent)" }}
-                >
-                  <Navigation size={12} />
-                  指派团队
-                </button>
-              )}
             </div>
           </div>
         ))}
@@ -734,7 +1132,283 @@ function WorkOrderTab({
   );
 }
 
-function DashboardTab() {
+const exportModules = [
+  { key: "workorders", label: "整改工单记录", desc: "责任单位、状态、截止时间、复审结果" },
+  { key: "metrics", label: "看板统计指标", desc: "整改率、违规类型分布、整体评分" },
+];
+
+function HistoryExportPage({ onBack }: { onBack: () => void }) {
+  const [rangeMode, setRangeMode] = useState<"single" | "range">("single");
+  const [startMonth, setStartMonth] = useState("2025-06");
+  const [endMonth, setEndMonth] = useState("2025-06");
+  const [format, setFormat] = useState<"xlsx" | "pdf" | "csv">("xlsx");
+  const [selectedModules, setSelectedModules] = useState(exportModules.map((item) => item.key));
+  const [exported, setExported] = useState(false);
+
+  const normalizedEndMonth = rangeMode === "single" ? startMonth : endMonth;
+  const hasMonthRange = Boolean(startMonth && normalizedEndMonth);
+  const rangeInvalid = !hasMonthRange || normalizedEndMonth < startMonth;
+  const startDate = hasMonthRange ? new Date(`${startMonth}-01T00:00:00`) : null;
+  const endDate = hasMonthRange ? new Date(`${normalizedEndMonth}-01T00:00:00`) : null;
+  const monthCount = rangeInvalid || !startDate || !endDate ? 0 : ((endDate.getFullYear() - startDate.getFullYear()) * 12) + endDate.getMonth() - startDate.getMonth() + 1;
+  const estimatedRecords = monthCount * (selectedModules.length * 36 + 12);
+  const selectedLabels = exportModules
+    .filter((item) => selectedModules.includes(item.key))
+    .map((item) => item.label);
+  const fileName = `云百智航_历史监管数据_${startMonth}_${normalizedEndMonth}.${format}`;
+  const canExport = !rangeInvalid && selectedModules.length > 0;
+
+  const toggleModule = (key: string) => {
+    setExported(false);
+    setSelectedModules((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
+    );
+  };
+
+  const downloadFile = () => {
+    const content = [
+      "云百智航历史监管数据导出",
+      `时间范围,${startMonth} 至 ${normalizedEndMonth}`,
+      `导出格式,${format.toUpperCase()}`,
+      `数据模块,${selectedLabels.join(" / ")}`,
+      `预计记录,${estimatedRecords} 条`,
+      "说明,原型环境生成模拟导出文件",
+    ].join("\n");
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExport = () => {
+    if (!canExport) return;
+    setExported(true);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <NavBar title="历史数据导出" subtitle="按月份导出监管数据" onBack={onBack} />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "rgba(0,107,255,0.10)", color: "var(--primary)" }}>
+              <CalendarRange size={20} />
+            </div>
+            <div>
+              <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>导出月份</div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>支持单月或连续月份段</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2 mb-3">
+            {[
+              { key: "single", label: "指定月份" },
+              { key: "range", label: "月份段" },
+            ].map((item) => {
+              const active = rangeMode === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setRangeMode(item.key as "single" | "range");
+                    setExported(false);
+                  }}
+                  className="py-2.5 rounded-xl text-sm font-semibold"
+                  style={{
+                    background: active ? "var(--primary)" : "var(--secondary)",
+                    color: active ? "#fff" : "var(--foreground)",
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="space-y-1">
+              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>开始月份</span>
+              <input
+                type="month"
+                value={startMonth}
+                onChange={(event) => {
+                  setStartMonth(event.target.value);
+                  if (rangeMode === "single") setEndMonth(event.target.value);
+                  setExported(false);
+                }}
+                className="w-full rounded-xl px-3 py-2.5 outline-none text-sm"
+                style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+              />
+            </label>
+            <label className="space-y-1">
+              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>结束月份</span>
+              <input
+                type="month"
+                value={normalizedEndMonth}
+                disabled={rangeMode === "single"}
+                onChange={(event) => {
+                  setEndMonth(event.target.value);
+                  setExported(false);
+                }}
+                className="w-full rounded-xl px-3 py-2.5 outline-none text-sm"
+                style={{
+                  background: rangeMode === "single" ? "rgba(100,115,134,0.08)" : "var(--secondary)",
+                  border: "1px solid var(--border)",
+                  color: rangeMode === "single" ? "var(--muted-foreground)" : "var(--foreground)",
+                }}
+              />
+            </label>
+          </div>
+          {rangeInvalid && (
+            <div className="text-xs mt-2" style={{ color: "var(--danger)" }}>结束月份不能早于开始月份</div>
+          )}
+        </div>
+
+        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <DatabaseBackup size={18} color="var(--primary)" />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>数据范围</h3>
+          </div>
+          <div className="space-y-2">
+            {exportModules.map((item) => {
+              const checked = selectedModules.includes(item.key);
+              return (
+                <label
+                  key={item.key}
+                  className="flex items-start gap-3 rounded-xl p-3 transition-all"
+                  style={{
+                    background: checked ? "rgba(0,107,255,0.12)" : "var(--secondary)",
+                    border: `1.5px solid ${checked ? "var(--primary)" : "rgba(100,115,134,0.24)"}`,
+                    boxShadow: checked ? "0 8px 18px rgba(0,107,255,0.10)" : "none",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleModule(item.key)}
+                    className="sr-only"
+                  />
+                  <span
+                    className="w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 mt-0.5"
+                    style={{
+                      background: checked ? "var(--primary)" : "#fff",
+                      border: `1px solid ${checked ? "var(--primary)" : "var(--border)"}`,
+                      color: "#fff",
+                    }}
+                  >
+                    {checked && <CheckCircle2 size={14} />}
+                  </span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-semibold" style={{ color: checked ? "var(--primary)" : "var(--foreground)" }}>{item.label}</span>
+                    <span className="block text-xs mt-0.5" style={{ color: checked ? "var(--foreground)" : "var(--muted-foreground)" }}>{item.desc}</span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <FileSpreadsheet size={18} color="var(--success)" />
+            <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>导出格式</h3>
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { key: "xlsx", label: "Excel" },
+              { key: "pdf", label: "PDF" },
+              { key: "csv", label: "CSV" },
+            ].map((item) => {
+              const active = format === item.key;
+              return (
+                <button
+                  key={item.key}
+                  type="button"
+                  onClick={() => {
+                    setFormat(item.key as "xlsx" | "pdf" | "csv");
+                    setExported(false);
+                  }}
+                  className="py-2.5 rounded-xl text-sm font-semibold"
+                  style={{
+                    background: active ? "rgba(53,208,127,0.16)" : "var(--secondary)",
+                    color: active ? "var(--success)" : "var(--foreground)",
+                    border: `1px solid ${active ? "rgba(53,208,127,0.36)" : "var(--border)"}`,
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="rounded-xl p-4" style={{ background: "rgba(47,125,246,0.08)", border: "1px solid rgba(47,125,246,0.22)" }}>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>导出预览</div>
+            <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "rgba(0,107,255,0.10)", color: "var(--primary)" }}>
+              {monthCount} 个月
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>时间范围</div>
+              <div className="text-sm font-semibold mt-1" style={{ color: "var(--foreground)" }}>{startMonth} 至 {normalizedEndMonth}</div>
+            </div>
+            <div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>预计记录</div>
+              <div className="text-sm font-semibold mt-1" style={{ color: "var(--foreground)" }}>{estimatedRecords} 条</div>
+            </div>
+            <div className="col-span-2">
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>文件名</div>
+              <div className="text-xs font-mono mt-1 truncate" style={{ color: "var(--primary)" }}>{fileName}</div>
+            </div>
+          </div>
+        </div>
+
+        {exported && (
+          <div className="rounded-xl p-4 flex items-center gap-3" style={{ background: "rgba(53,208,127,0.10)", border: "1px solid rgba(53,208,127,0.30)" }}>
+            <CheckCircle2 size={22} color="var(--success)" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold" style={{ color: "var(--success)" }}>导出文件已生成</div>
+              <div className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>{fileName}</div>
+            </div>
+            <button
+              type="button"
+              onClick={downloadFile}
+              className="px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-1"
+              style={{ background: "var(--success)", color: "#fff" }}
+            >
+              <Download size={13} />
+              下载
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}>
+        <button
+          type="button"
+          disabled={!canExport}
+          onClick={handleExport}
+          className="w-full py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2"
+          style={{
+            background: canExport ? "var(--primary)" : "var(--secondary)",
+            color: canExport ? "#fff" : "var(--muted-foreground)",
+          }}
+        >
+          <Download size={16} />
+          生成导出文件
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function DashboardTab({ onExport }: { onExport: () => void }) {
   const stats = [
     { label: "本月违规", value: 23, unit: "起", color: "var(--danger)", icon: <AlertTriangle size={18} /> },
     { label: "整改完成", value: 18, unit: "起", color: "var(--success)", icon: <CheckCircle2 size={18} /> },
@@ -751,6 +1425,22 @@ function DashboardTab() {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <button
+        type="button"
+        onClick={onExport}
+        className="w-full rounded-xl p-4 flex items-center gap-3 text-left active:opacity-80"
+        style={{ background: "linear-gradient(135deg, rgba(0,107,255,0.10), rgba(53,208,127,0.08))", border: "1px solid rgba(0,107,255,0.22)" }}
+      >
+        <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "var(--primary)", color: "#fff" }}>
+          <Download size={21} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>历史数据导出</div>
+          <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>导出指定月份或月份段内的监管数据</div>
+        </div>
+        <ChevronRight size={16} color="var(--primary)" />
+      </button>
+
       {/* Stats Grid */}
       <div className="grid grid-cols-2 gap-3">
         {stats.map((s) => (
@@ -831,6 +1521,7 @@ function MessageTab({
   const [activeId, setActiveId] = useState(supervisorLeaderThreads[0].id);
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const filteredThreads = threads.filter((thread) => {
     const keyword = query.trim();
@@ -841,6 +1532,7 @@ function MessageTab({
 
   const openThread = (threadId: string) => {
     setActiveId(threadId);
+    setSidebarOpen(false);
     setThreads((current) =>
       current.map((thread) =>
         thread.id === threadId ? { ...thread, unread: 0 } : thread,
@@ -870,22 +1562,72 @@ function MessageTab({
   };
 
   return (
-    <div className="flex-1 overflow-hidden flex flex-col">
-      <div className="px-4 py-3 space-y-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
+    <div className="flex-1 overflow-hidden flex flex-col relative">
+      {!sidebarOpen && (
+        <button
+          type="button"
+          title="打开会话侧栏"
+          aria-label="打开会话侧栏"
+          onClick={() => setSidebarOpen(true)}
+          className="absolute left-0 top-4 z-20 h-11 w-8 rounded-r-xl flex items-center justify-center active:opacity-80"
+          style={{ background: "var(--primary)", color: "#fff", boxShadow: "0 8px 18px rgba(0,107,255,0.22)" }}
+        >
+          <PanelLeftOpen size={17} />
+        </button>
+      )}
+
+      {sidebarOpen && (
+        <button
+          type="button"
+          aria-label="关闭会话侧栏"
+          onClick={() => setSidebarOpen(false)}
+          className="absolute inset-0 z-30"
+          style={{ background: "rgba(15,23,42,0.18)" }}
+        />
+      )}
+
+      <aside
+        className="absolute left-0 top-0 bottom-0 z-40 flex flex-col transition-transform duration-200"
+        style={{
+          width: "82%",
+          maxWidth: 328,
+          background: "var(--background)",
+          borderRight: "1px solid var(--border)",
+          boxShadow: sidebarOpen ? "14px 0 32px rgba(15,23,42,0.14)" : "none",
+          transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+        }}
+      >
+        <div className="p-4 flex items-center justify-between flex-shrink-0" style={{ borderBottom: "1px solid var(--border)" }}>
           <div>
-            <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>会话列表</div>
+            <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>现有会话</div>
             <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
               指派飞行团队后自动开启会话
             </div>
           </div>
+          <button
+            type="button"
+            title="收起侧栏"
+            aria-label="收起侧栏"
+            onClick={() => setSidebarOpen(false)}
+            className="w-9 h-9 rounded-lg flex items-center justify-center active:opacity-70"
+            style={{ background: "var(--secondary)", color: "var(--foreground)" }}
+          >
+            <PanelLeftClose size={18} />
+          </button>
+        </div>
+
+        <div className="px-4 pt-3 flex items-center gap-2 flex-shrink-0">
           <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
             style={{ background: "rgba(0,107,255,0.10)", color: "var(--primary)" }}>
             {threads.length} 个已开启
           </span>
+          <span className="text-xs px-2.5 py-1 rounded-full font-semibold"
+            style={{ background: "rgba(255,122,0,0.12)", color: "var(--caution)" }}>
+            {threads.reduce((sum, thread) => sum + thread.unread, 0)} 条未读
+          </span>
         </div>
 
-        <div className="flex items-center gap-2 rounded-xl px-3 py-2" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+        <div className="mx-4 mt-3 flex items-center gap-2 rounded-xl px-3 py-2 flex-shrink-0" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
           <Search size={15} style={{ color: "var(--muted-foreground)" }} />
           <input
             value={query}
@@ -896,7 +1638,7 @@ function MessageTab({
           />
         </div>
 
-        <div className="space-y-2 overflow-y-auto pr-1" style={{ maxHeight: 188 }}>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
           {filteredThreads.map((thread) => {
             const active = thread.id === activeThread.id;
             return (
@@ -943,15 +1685,26 @@ function MessageTab({
             </div>
           )}
         </div>
-      </div>
+      </aside>
 
-      <div className="mx-4 rounded-xl p-3 flex items-center gap-3 flex-shrink-0"
+      <div className="mx-4 mt-3 rounded-xl p-3 flex items-center gap-3 flex-shrink-0"
         style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+        <button
+          type="button"
+          title="切换会话"
+          aria-label="切换会话"
+          onClick={() => setSidebarOpen(true)}
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 active:opacity-70"
+          style={{ background: "rgba(0,107,255,0.10)", color: "var(--primary)" }}
+        >
+          <PanelLeftOpen size={18} />
+        </button>
         <div className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background: "rgba(95,180,255,0.14)", color: "var(--accent)" }}>
           <Users size={19} />
         </div>
         <div className="flex-1 min-w-0">
+          <div className="text-xs font-semibold mb-0.5" style={{ color: "var(--muted-foreground)" }}>当前对话对象</div>
           <div className="flex items-center gap-2">
             <div className="text-sm font-semibold truncate" style={{ color: "var(--foreground)" }}>{activeThread.leader}</div>
             <span className="text-xs px-2 py-0.5 rounded-full"
@@ -1024,15 +1777,85 @@ function MessageTab({
 
 function HomeTab({
   onReviewClick,
-  onMessageClick,
+  onWorkOrderClick,
+  onFlightTaskClick,
+  onDashboardClick,
+  onExportClick,
+  onProfileClick,
   pendingCount,
-  messageUnread,
+  pendingFlightTaskCount,
+  pendingReReviewCount,
 }: {
   onReviewClick: () => void;
-  onMessageClick: () => void;
+  onWorkOrderClick: () => void;
+  onFlightTaskClick: () => void;
+  onDashboardClick: () => void;
+  onExportClick: () => void;
+  onProfileClick: () => void;
   pendingCount: number;
-  messageUnread: number;
+  pendingFlightTaskCount: number;
+  pendingReReviewCount: number;
 }) {
+  const overviewItems = [
+    {
+      label: "待审核图片",
+      desc: "AI告警确认",
+      value: pendingCount,
+      icon: <Camera size={18} />,
+      color: "var(--caution)",
+      bg: "rgba(255,224,71,0.16)",
+      border: "rgba(255,177,0,0.32)",
+      action: onReviewClick,
+    },
+    {
+      label: "待指派任务",
+      desc: "飞行任务派发",
+      value: pendingFlightTaskCount,
+      icon: <Navigation size={18} />,
+      color: "var(--primary)",
+      bg: "rgba(0,107,255,0.10)",
+      border: "rgba(0,107,255,0.22)",
+      action: onFlightTaskClick,
+    },
+    {
+      label: "待复审工单",
+      desc: "影像比对复核",
+      value: pendingReReviewCount,
+      icon: <ClipboardList size={18} />,
+      color: "var(--danger)",
+      bg: "rgba(255,74,74,0.10)",
+      border: "rgba(255,74,74,0.22)",
+      action: onWorkOrderClick,
+    },
+  ];
+
+  const secondaryEntries = [
+    {
+      label: "数据看板",
+      desc: "项目指标、趋势与整改效率",
+      icon: <PieChart size={20} />,
+      color: "var(--success)",
+      bg: "rgba(53,208,127,0.12)",
+      action: onDashboardClick,
+    },
+    {
+      label: "历史数据导出",
+      desc: "按月份导出整改工单与看板指标",
+      icon: <Download size={20} />,
+      color: "var(--primary)",
+      bg: "rgba(0,107,255,0.10)",
+      action: onExportClick,
+    },
+    {
+      label: "我的",
+      desc: "账号信息、监管项目与团队概况",
+      icon: <User size={20} />,
+      color: "var(--foreground)",
+      bg: "rgba(100,115,134,0.10)",
+      action: onProfileClick,
+    },
+  ];
+
   return (
     <div className="flex-1 overflow-y-auto">
       {/* Hero Banner */}
@@ -1050,30 +1873,56 @@ function HomeTab({
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="px-4 mt-4 grid grid-cols-4 gap-3">
-        {[
-          { label: "待审核", icon: <Camera size={22} />, color: "var(--caution)", bg: "rgba(255,224,71,0.12)", badge: pendingCount, action: onReviewClick },
-          { label: "工单管理", icon: <ClipboardList size={22} />, color: "var(--primary)", bg: "rgba(47,125,246,0.12)", badge: 0, action: () => {} },
-          { label: "即时通信", icon: <MessageCircle size={22} />, color: "var(--info)", bg: "rgba(95,180,255,0.12)", badge: messageUnread, action: onMessageClick },
-          { label: "数据看板", icon: <PieChart size={22} />, color: "var(--success)", bg: "rgba(53,208,127,0.12)", badge: 0, action: () => {} },
-        ].map((item) => (
+      <div className="px-4 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>工作概览</h3>
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>今日待办</span>
+        </div>
+        <div className="grid grid-cols-3 gap-2.5">
+          {overviewItems.map((item) => (
+            <button
+              key={item.label}
+              onClick={item.action}
+              className="min-h-[108px] rounded-xl p-3 active:opacity-70 text-left flex flex-col justify-between"
+              style={{ background: item.bg, border: `1px solid ${item.border}` }}
+            >
+              <div className="flex items-center justify-between">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "rgba(255,255,255,0.78)", color: item.color }}>
+                  {item.icon}
+                </div>
+                <ChevronRight size={14} style={{ color: item.color }} />
+              </div>
+              <div>
+                <div className="font-bold leading-none" style={{ fontSize: 26, color: item.color }}>{item.value}</div>
+                <div className="text-xs font-semibold mt-1 leading-tight" style={{ color: "var(--foreground)" }}>{item.label}</div>
+                <div className="mt-0.5 leading-tight" style={{ fontSize: 10, color: "var(--muted-foreground)" }}>{item.desc}</div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="px-4 mt-4">
+        <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>次级入口</h3>
+        <div className="space-y-2">
+          {secondaryEntries.map((item) => (
           <button
             key={item.label}
             onClick={item.action}
-            className="flex flex-col items-center gap-2 py-3 rounded-xl active:opacity-70 relative"
-            style={{ background: item.bg }}
+            className="w-full rounded-xl p-3 active:opacity-70 text-left flex items-center gap-3"
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
           >
-            <div style={{ color: item.color }}>{item.icon}</div>
-            <span style={{ fontSize: 11, color: "var(--foreground)" }}>{item.label}</span>
-            {item.badge > 0 && (
-              <span className="absolute top-1 right-1 text-white text-xs rounded-full flex items-center justify-center"
-                style={{ background: "var(--danger)", minWidth: 16, height: 16, fontSize: 10, padding: "0 3px" }}>
-                {item.badge}
-              </span>
-            )}
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.bg, color: item.color }}>
+              {item.icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold truncate" style={{ color: "var(--foreground)" }}>{item.label}</div>
+              <div className="text-xs mt-0.5 truncate" style={{ color: "var(--muted-foreground)" }}>{item.desc}</div>
+            </div>
+            <ChevronRight size={16} style={{ color: "var(--muted-foreground)" }} />
           </button>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Latest alerts */}
@@ -1125,6 +1974,32 @@ function HomeTab({
   );
 }
 
+function SupervisorProfileTab() {
+  return (
+    <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
+      <div className="w-20 h-20 rounded-full flex items-center justify-center font-bold"
+        style={{ background: "rgba(0,107,255,0.12)", color: "var(--primary)", fontSize: 28 }}>李</div>
+      <div className="text-center">
+        <div className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>李建国</div>
+        <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>领导监理 · 阳光城 A-C地块</div>
+      </div>
+      <div className="w-full rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+        {[
+          { label: "监管项目", value: "阳光城 A-C地块" },
+          { label: "待审核图片", value: `${pendingImages.length} 条` },
+          { label: "整改工单", value: `${workOrders.length} 单` },
+          { label: "飞行团队", value: `${droneTeams.length} 支` },
+        ].map((item) => (
+          <div key={item.label} className="flex items-center justify-between">
+            <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>{item.label}</span>
+            <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Exported Supervisor App ──────────────────────────────────
 
 export function SupervisorApp() {
@@ -1132,14 +2007,20 @@ export function SupervisorApp() {
   const [detail, setDetail] = useState<typeof pendingImages[0] | null>(null);
   const [assignId, setAssignId] = useState<string | null>(null);
   const [reReviewId, setReReviewId] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
+  const [flightTasks, setFlightTasks] = useState<FlightTask[]>(initialFlightTasks);
+  const [creatingFlightTask, setCreatingFlightTask] = useState(false);
+  const [flightTaskDraft, setFlightTaskDraft] = useState<Partial<FlightTask> | null>(null);
+  const [assigningFlightTaskId, setAssigningFlightTaskId] = useState<string | null>(null);
   const [reviewResults, setReviewResults] = useState<Record<string, "approved" | "rejected">>({});
   const [messageThreads, setMessageThreads] = useState<SupervisorLeaderThread[]>(supervisorLeaderThreads);
   const messageUnread = messageThreads.reduce((sum, thread) => sum + thread.unread, 0);
+  const pendingFlightTaskCount = flightTasks.filter((task) => task.status === "pending-assignment").length;
+  const pendingReReviewCount = workOrders.filter(
+    (order) => order.status === "re-review" && order.reviewStage === "ready-review" && !reviewResults[order.id],
+  ).length;
 
-  const handleTeamAssigned = (teamId: string, workOrderId: string) => {
-    const nextThread = createAssignedLeaderThread(teamId, workOrderId);
-    if (!nextThread) return;
-
+  const upsertTeamThread = (nextThread: SupervisorLeaderThread) => {
     setMessageThreads((current) => {
       const existing = current.find((thread) => thread.id === nextThread.id);
       if (!existing) return [nextThread, ...current];
@@ -1150,22 +2031,64 @@ export function SupervisorApp() {
               ...thread,
               assigned: true,
               tag: "已指派",
-              workOrder: workOrderId,
+              workOrder: nextThread.workOrder,
               lastActive: "刚刚",
               messages: [
                 ...thread.messages,
-                {
-                  id: `m-${Date.now()}`,
-                  from: "me",
-                  text: `${workOrderId} 已重新指派给 ${thread.teamName}，请继续同步任务进展。`,
-                  time: "刚刚",
-                },
+                nextThread.messages[0],
               ],
             }
           : thread,
       );
     });
+  };
+
+  const handleTeamAssigned = (teamId: string, workOrderId: string) => {
+    const nextThread = createAssignedLeaderThread(teamId, workOrderId);
+    if (!nextThread) return;
+
+    upsertTeamThread(nextThread);
     setActiveTab("message");
+  };
+
+  const handleFlightTaskCreated = (task: FlightTask) => {
+    setFlightTasks((current) => [task, ...current]);
+    setCreatingFlightTask(false);
+    setFlightTaskDraft(null);
+    setActiveTab("flight");
+  };
+
+  const openFlightTaskCreate = (draft?: Partial<FlightTask>) => {
+    setFlightTaskDraft(draft ?? null);
+    setCreatingFlightTask(true);
+  };
+
+  const handleFlightTaskAssigned = (teamId: string, taskId: string) => {
+    const team = droneTeams.find((item) => item.id === teamId);
+    const task = flightTasks.find((item) => item.id === taskId);
+    if (!team || !task) return;
+
+    setFlightTasks((current) =>
+      current.map((item) =>
+        item.id === taskId
+          ? {
+              ...item,
+              status: "assigned",
+              assignedTeamId: team.id,
+              assignedTeamName: team.name,
+              assignedLeader: team.leader,
+              assignedAt: "刚刚",
+            }
+          : item,
+      ),
+    );
+
+    const nextThread = createAssignedLeaderThread(
+      teamId,
+      taskId,
+      `${team.leader}，飞行任务 ${taskId} 已派发给 ${team.name}。位置：${task.location}，截止：${task.deadline}，请安排飞手执行并回传影像资料。`,
+    );
+    if (nextThread) upsertTeamThread(nextThread);
   };
 
   const handleReReviewDecision = (id: string, decision: "approved" | "rejected") => {
@@ -1174,11 +2097,21 @@ export function SupervisorApp() {
 
   const tabs: TabItem[] = [
     { key: "home", label: "首页", icon: <LayoutGrid size={20} /> },
+    { key: "workorder", label: "工单审核", icon: <ClipboardList size={20} /> },
     { key: "review", label: "图片审核", icon: <Camera size={20} />, badge: pendingImages.length },
-    { key: "workorder", label: "工单", icon: <ClipboardList size={20} /> },
-    { key: "message", label: "通信", icon: <MessageCircle size={20} />, badge: messageUnread },
-    { key: "dashboard", label: "数据看板", icon: <PieChart size={20} /> },
+    { key: "flight", label: "指派任务", icon: <Navigation size={20} />, badge: pendingFlightTaskCount },
+    { key: "message", label: "消息", icon: <MessageCircle size={20} />, badge: messageUnread },
   ];
+  const pageTitles: Record<string, string> = {
+    home: "首页",
+    flight: "指派任务",
+    message: "消息",
+    profile: "我的",
+    review: "图片审核",
+    workorder: "工单审核",
+    dashboard: "数据看板",
+  };
+  const bottomActive = tabs.some((tab) => tab.key === activeTab) ? activeTab : "home";
 
   if (detail) {
     return (
@@ -1201,6 +2134,32 @@ export function SupervisorApp() {
     );
   }
 
+  if (creatingFlightTask) {
+    return (
+      <FlightTaskCreatePage
+        onBack={() => {
+          setCreatingFlightTask(false);
+          setFlightTaskDraft(null);
+        }}
+        onCreate={handleFlightTaskCreated}
+        initialTask={flightTaskDraft}
+      />
+    );
+  }
+
+  if (assigningFlightTaskId) {
+    const task = flightTasks.find((item) => item.id === assigningFlightTaskId);
+    if (task) {
+      return (
+        <AssignFlightTaskModal
+          task={task}
+          onClose={() => setAssigningFlightTaskId(null)}
+          onAssigned={handleFlightTaskAssigned}
+        />
+      );
+    }
+  }
+
   if (reReviewId) {
     const workOrder = workOrders.find((item) => item.id === reReviewId);
     if (workOrder) {
@@ -1215,11 +2174,15 @@ export function SupervisorApp() {
     }
   }
 
+  if (exporting) {
+    return <HistoryExportPage onBack={() => setExporting(false)} />;
+  }
+
   return (
     <div className="flex flex-col h-full">
       {activeTab !== "home" && (
         <NavBar
-          title={tabs.find((t) => t.key === activeTab)?.label ?? ""}
+          title={pageTitles[activeTab] ?? ""}
           badge={activeTab === "review" ? pendingImages.length : 0}
         />
       )}
@@ -1241,25 +2204,37 @@ export function SupervisorApp() {
         {activeTab === "home" && (
         <HomeTab
           onReviewClick={() => setActiveTab("review")}
-          onMessageClick={() => setActiveTab("message")}
+          onWorkOrderClick={() => setActiveTab("workorder")}
+          onFlightTaskClick={() => setActiveTab("flight")}
+          onDashboardClick={() => setActiveTab("dashboard")}
+          onExportClick={() => setExporting(true)}
+          onProfileClick={() => setActiveTab("profile")}
           pendingCount={pendingImages.length}
-          messageUnread={messageUnread}
+          pendingFlightTaskCount={pendingFlightTaskCount}
+          pendingReReviewCount={pendingReReviewCount}
         />
       )}
+        {activeTab === "flight" && (
+          <FlightTaskTab
+            tasks={flightTasks}
+            onCreate={() => openFlightTaskCreate()}
+            onAssign={(id) => setAssigningFlightTaskId(id)}
+          />
+        )}
         {activeTab === "review" && (
           <ReviewTab onOpenDetail={(img) => setDetail(img)} />
         )}
         {activeTab === "workorder" && (
           <WorkOrderTab
-            onAssign={(id) => setAssignId(id)}
             onReReview={(id) => setReReviewId(id)}
             reviewResults={reviewResults}
           />
         )}
         {activeTab === "message" && <MessageTab threads={messageThreads} setThreads={setMessageThreads} />}
-        {activeTab === "dashboard" && <DashboardTab />}
+        {activeTab === "dashboard" && <DashboardTab onExport={() => setExporting(true)} />}
+        {activeTab === "profile" && <SupervisorProfileTab />}
       </div>
-      <BottomTab tabs={tabs} active={activeTab} onChange={setActiveTab} />
+      <BottomTab tabs={tabs} active={bottomActive} onChange={setActiveTab} />
     </div>
   );
 }

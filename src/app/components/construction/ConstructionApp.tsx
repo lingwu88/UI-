@@ -5,10 +5,30 @@ import { StatusBadge } from "../shared/StatusBadge";
 import {
   LayoutGrid, ClipboardList, User,
   MapPin, Clock, ChevronRight, Camera,
-  CheckCircle2, Upload, AlertCircle, Search,
+  CheckCircle2, Upload, AlertCircle, Search, ChevronDown,
 } from "lucide-react";
 
-const workOrders = [
+type ConstructionWorkOrder = {
+  id: string;
+  type: string;
+  location: string;
+  deadline: string;
+  status: "rectifying" | "re-review" | "completed";
+  assignedTo: string;
+  remark: string;
+  img: string;
+  issueTime: string;
+  rectificationRound?: 1 | 2;
+  firstRectification?: {
+    submittedAt: string;
+    submitter: string;
+    description: string;
+    reviewComment: string;
+    img: string;
+  };
+};
+
+const workOrders: ConstructionWorkOrder[] = [
   {
     id: "WO-20250612-001",
     type: "未佩戴安全帽",
@@ -16,9 +36,17 @@ const workOrders = [
     deadline: "2025-06-13 17:00",
     status: "rectifying" as const,
     assignedTo: "张工",
-    remark: "所有施工人员必须佩戴安全帽，立即整改",
+    remark: "二次整改：所有施工人员必须规范佩戴安全帽，现场入口与楼层作业面需同步复查",
     img: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&auto=format",
     issueTime: "2025-06-12 09:23",
+    rectificationRound: 2,
+    firstRectification: {
+      submittedAt: "2025-06-12 11:20",
+      submitter: "张工",
+      description: "已在A区3号楼入口补充安全帽发放点，并要求班组长现场提醒作业人员佩戴。",
+      reviewComment: "监理复审驳回：5层作业面仍发现个别人员安全帽佩戴不规范，需要二次整改并补充楼层巡查照片。",
+      img: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&h=300&fit=crop&auto=format",
+    },
   },
   {
     id: "WO-20250612-002",
@@ -44,11 +72,12 @@ const workOrders = [
   },
 ];
 
-function WorkOrderDetail({ wo, onBack }: { wo: typeof workOrders[0]; onBack: () => void }) {
+function WorkOrderDetail({ wo, onBack }: { wo: ConstructionWorkOrder; onBack: () => void }) {
   const [submitted, setSubmitted] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
+  const [showFirstRectification, setShowFirstRectification] = useState(Boolean(wo.firstRectification));
 
   const handleUpload = () => {
     setUploading(true);
@@ -69,7 +98,15 @@ function WorkOrderDetail({ wo, onBack }: { wo: typeof workOrders[0]; onBack: () 
         <div className="px-4 pt-4 pb-3" style={{ background: "var(--card)", borderBottom: "1px solid var(--border)" }}>
           <div className="flex items-start justify-between gap-2 mb-2">
             <div>
-              <div className="font-semibold text-base" style={{ color: "var(--foreground)" }}>{wo.type}</div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="font-semibold text-base" style={{ color: "var(--foreground)" }}>{wo.type}</div>
+                {wo.rectificationRound === 2 && (
+                  <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                    style={{ background: "rgba(255,122,0,0.14)", color: "var(--caution)" }}>
+                    二次整改
+                  </span>
+                )}
+              </div>
               <div className="text-xs font-mono mt-0.5" style={{ color: "var(--muted-foreground)" }}>{wo.id}</div>
             </div>
             <StatusBadge status={wo.status} />
@@ -104,6 +141,51 @@ function WorkOrderDetail({ wo, onBack }: { wo: typeof workOrders[0]; onBack: () 
               </span>
             </div>
           </div>
+
+          {wo.firstRectification && (
+            <div className="rounded-xl overflow-hidden" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+              <button
+                type="button"
+                onClick={() => setShowFirstRectification((current) => !current)}
+                className="w-full p-4 flex items-center justify-between gap-3 text-left active:opacity-80"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>第一次整改记录</h3>
+                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                      style={{ background: "rgba(255,74,74,0.10)", color: "var(--danger)" }}>
+                      已驳回
+                    </span>
+                  </div>
+                  <div className="text-xs mt-1 truncate" style={{ color: "var(--muted-foreground)" }}>
+                    {wo.firstRectification.submittedAt} · {wo.firstRectification.submitter}
+                  </div>
+                </div>
+                {showFirstRectification ? (
+                  <ChevronDown size={17} style={{ color: "var(--muted-foreground)" }} />
+                ) : (
+                  <ChevronRight size={17} style={{ color: "var(--muted-foreground)" }} />
+                )}
+              </button>
+
+              {showFirstRectification && (
+                <div className="px-4 pb-4 space-y-3" style={{ borderTop: "1px solid var(--border)" }}>
+                  <div className="rounded-xl overflow-hidden mt-3">
+                    <img src={wo.firstRectification.img} alt="" className="w-full object-cover" style={{ height: 120 }} />
+                  </div>
+                  <div>
+                    <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>第一次整改说明</div>
+                    <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{wo.firstRectification.description}</p>
+                  </div>
+                  <div className="rounded-xl p-3"
+                    style={{ background: "rgba(255,74,74,0.08)", border: "1px solid rgba(255,74,74,0.18)" }}>
+                    <div className="text-xs font-semibold mb-1" style={{ color: "var(--danger)" }}>复审驳回意见</div>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{wo.firstRectification.reviewComment}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Responsibility */}
           <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
@@ -225,7 +307,7 @@ function WorkOrderDetail({ wo, onBack }: { wo: typeof workOrders[0]; onBack: () 
   );
 }
 
-function WorkOrderListTab({ onSelect }: { onSelect: (wo: typeof workOrders[0]) => void }) {
+function WorkOrderListTab({ onSelect }: { onSelect: (wo: ConstructionWorkOrder) => void }) {
   const [filter, setFilter] = useState("all");
   const [query, setQuery] = useState("");
 
@@ -275,7 +357,15 @@ function WorkOrderListTab({ onSelect }: { onSelect: (wo: typeof workOrders[0]) =
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="font-semibold text-sm truncate" style={{ color: "var(--foreground)" }}>{wo.type}</span>
-                  <StatusBadge status={wo.status} small />
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {wo.rectificationRound === 2 && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ background: "rgba(255,122,0,0.14)", color: "var(--caution)", fontSize: 10 }}>
+                        二次整改
+                      </span>
+                    )}
+                    <StatusBadge status={wo.status} small />
+                  </div>
                 </div>
                 <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{wo.id}</div>
                 <div className="flex items-center gap-3 mt-1">
@@ -347,7 +437,15 @@ function ConstructionHomeTab({ onViewOrders }: { onViewOrders: () => void }) {
                 <img src={wo.img} alt="" className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-medium text-sm truncate" style={{ color: "var(--foreground)" }}>{wo.type}</div>
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="font-medium text-sm truncate" style={{ color: "var(--foreground)" }}>{wo.type}</div>
+                  {wo.rectificationRound === 2 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full font-semibold flex-shrink-0"
+                      style={{ background: "rgba(255,122,0,0.14)", color: "var(--caution)", fontSize: 10 }}>
+                      二次整改
+                    </span>
+                  )}
+                </div>
                 <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{wo.location}</div>
               </div>
               <StatusBadge status={wo.status} small />
@@ -361,7 +459,7 @@ function ConstructionHomeTab({ onViewOrders }: { onViewOrders: () => void }) {
 
 export function ConstructionApp() {
   const [activeTab, setActiveTab] = useState("home");
-  const [selectedWo, setSelectedWo] = useState<typeof workOrders[0] | null>(null);
+  const [selectedWo, setSelectedWo] = useState<ConstructionWorkOrder | null>(null);
 
   const tabs: TabItem[] = [
     { key: "home", label: "首页", icon: <LayoutGrid size={20} /> },
