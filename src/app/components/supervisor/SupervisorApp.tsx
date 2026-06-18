@@ -574,8 +574,30 @@ function FlightTaskTab({
   onCreate: () => void;
   onAssign: (id: string) => void;
 }) {
-  const pendingTasks = tasks.filter((task) => task.status === "pending-assignment");
-  const assignedTasks = tasks.filter((task) => task.status !== "pending-assignment");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [teamFilter, setTeamFilter] = useState("all");
+  const teamOptions = [
+    { key: "all", label: "全部团队" },
+    { key: "T001", label: "团队A" },
+    { key: "T002", label: "团队B" },
+    { key: "T003", label: "团队C" },
+    { key: "T004", label: "团队D" },
+  ];
+  const statusOptions = [
+    { key: "all", label: "全部状态" },
+    { key: "pending-assignment", label: "待指派" },
+    { key: "assigned", label: "进行中" },
+    { key: "completed", label: "已完成" },
+  ];
+  const filteredTasks = tasks.filter((task) => {
+    const matchesStatus = statusFilter === "all" || task.status === statusFilter;
+    const matchesTeam = teamFilter === "all" || task.assignedTeamId === teamFilter;
+    return matchesStatus && matchesTeam;
+  });
+  const pendingTasks = filteredTasks.filter((task) => task.status === "pending-assignment");
+  const assignedTasks = filteredTasks.filter((task) => task.status === "assigned");
+  const completedTasks = filteredTasks.filter((task) => task.status === "completed");
+  const activeTasks = filteredTasks.filter((task) => task.status !== "pending-assignment");
 
   const renderTaskCard = (task: FlightTask) => (
     <div key={task.id} className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
@@ -600,6 +622,9 @@ function FlightTaskTab({
             <Clock size={11} />指定截止时间
           </div>
           <div className="text-sm font-medium mt-1" style={{ color: "var(--caution)" }}>{task.deadline}</div>
+          {task.assignedTeamName && (
+            <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>飞行团队: {task.assignedTeamName}</div>
+          )}
         </div>
       </div>
 
@@ -633,14 +658,42 @@ function FlightTaskTab({
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: "待指派", value: pendingTasks.length, color: "var(--caution)", bg: "rgba(255,224,71,0.12)" },
-            { label: "已派发", value: assignedTasks.length, color: "var(--primary)", bg: "rgba(0,107,255,0.10)" },
-            { label: "团队数", value: droneTeams.length, color: "var(--success)", bg: "rgba(53,208,127,0.10)" },
+            { label: "进行中", value: activeTasks.length, color: "var(--primary)", bg: "rgba(0,107,255,0.10)" },
+            { label: "团队数", value: teamOptions.length - 1, color: "var(--success)", bg: "rgba(53,208,127,0.10)" },
           ].map((item) => (
             <div key={item.label} className="rounded-xl p-3 text-center" style={{ background: item.bg }}>
               <div className="font-bold" style={{ fontSize: 22, color: item.color }}>{item.value}</div>
               <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
             </div>
           ))}
+        </div>
+        <div className="rounded-xl p-3 grid grid-cols-2 gap-2.5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <label className="space-y-1">
+            <div className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>任务状态</div>
+            <select
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <div className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>飞行团队</div>
+            <select
+              value={teamFilter}
+              onChange={(event) => setTeamFilter(event.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              {teamOptions.map((option) => (
+                <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
         </div>
         {/* 已隐藏功能：监理端“创建飞拍任务”入口已隐藏 */}
         {/*
@@ -682,11 +735,24 @@ function FlightTaskTab({
 
         {assignedTasks.length > 0 && (
           <section>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>已派发飞行任务</h3>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>进行中飞行任务</h3>
             <div className="space-y-3">
               {assignedTasks.map(renderTaskCard)}
             </div>
           </section>
+        )}
+        {completedTasks.length > 0 && (
+          <section>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>已完成飞行任务</h3>
+            <div className="space-y-3">
+              {completedTasks.map(renderTaskCard)}
+            </div>
+          </section>
+        )}
+        {filteredTasks.length === 0 && (
+          <div className="rounded-xl p-6 text-center text-sm" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
+            当前筛选条件下暂无飞行任务
+          </div>
         )}
       </div>
     </div>
