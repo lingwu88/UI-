@@ -6,7 +6,7 @@ import {
   LayoutGrid, ClipboardList, Send,
   MapPin, Clock, User, ChevronRight,
   CheckCircle2, XCircle, AlertTriangle,
-  Zap, Shield, TrendingUp, Users, Navigation,
+  Shield, TrendingUp, Users, Navigation,
   Search, PanelLeftOpen, PanelLeftClose,
   CalendarRange, Download, FileSpreadsheet, DatabaseBackup,
 } from "lucide-react";
@@ -26,9 +26,15 @@ type WorkOrder = {
   type: string;
   site: string;
   location: string;
-  status: "pending-deadline" | "rectifying" | "re-review" | "completed";
+  status: "pending-deadline" | "rectifying" | "re-review" | "completed" | "overdue";
   deadline: string;
   unit: string;
+  responsiblePerson: {
+    name: string;
+    role: string;
+    phone: string;
+    area: string;
+  };
   taskDetail: {
     taskName: string;
     createdAt: string;
@@ -49,6 +55,13 @@ type WorkOrder = {
     rectification: { title: string; time: string; img: string; desc: string };
     drone: { title: string; time: string; img: string; desc: string };
   };
+  rectificationDetail?: {
+    before: { title: string; time: string; img: string; desc: string };
+    after: { title: string; time: string; img: string; desc: string };
+    manager: string;
+    rectifiedAt: string;
+    summary: string;
+  };
 };
 
 const workOrders: WorkOrder[] = [
@@ -60,6 +73,12 @@ const workOrders: WorkOrder[] = [
     status: "pending-deadline",
     deadline: "",
     unit: "华建总承包",
+    responsiblePerson: {
+      name: "张工",
+      role: "工地负责人",
+      phone: "138****2201",
+      area: "A区3号楼-5层",
+    },
     taskDetail: {
       taskName: "5层作业面安全防护整改",
       createdAt: "2025-06-12 09:30",
@@ -90,14 +109,20 @@ const workOrders: WorkOrder[] = [
     status: "re-review",
     deadline: "2025-06-12",
     unit: "华建总承包",
+    responsiblePerson: {
+      name: "周海涛",
+      role: "工地负责人",
+      phone: "138****2202",
+      area: "B区基坑-东侧",
+    },
     taskDetail: {
-      taskName: "B区基坑高空作业隐患整改复审",
+      taskName: "B区基坑高空作业隐患整改审核",
       createdAt: "2025-06-12 09:45",
       issuer: "李建国",
       requirement: "审核高空作业区域安全绳佩戴、作业交底和警戒区域设置情况，确认整改是否落实。",
     },
     rectificationInfo: {
-      statusText: "整改完成，待复审",
+      statusText: "整改完成，待监理审核",
       rectifier: "周海涛",
       team: "华建总承包基坑班组",
       updatedAt: "2025-06-12 13:20",
@@ -129,7 +154,7 @@ const workOrders: WorkOrder[] = [
         title: "整改补充资料",
         time: "2025-06-12 15:36",
         img: "https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?w=400&h=300&fit=crop&auto=format",
-        desc: "鹰眼一队补充上传同区域现场影像，供监理审核整改落实情况。",
+        desc: "责任单位补充上传现场整改影像和说明，供监理审核整改落实情况。",
       },
     },
   },
@@ -138,31 +163,93 @@ const workOrders: WorkOrder[] = [
     type: "临边防护缺失",
     site: "工地C",
     location: "C区4号楼",
-    status: "re-review",
+    status: "rectifying",
     deadline: "2025-06-13",
     unit: "华建总承包",
+    responsiblePerson: {
+      name: "陈立峰",
+      role: "工地负责人",
+      phone: "138****2203",
+      area: "C区4号楼-临边作业面",
+    },
     taskDetail: {
-      taskName: "C区4号楼临边防护整改复审",
+      taskName: "C区4号楼临边防护整改审核",
       createdAt: "2025-06-12 10:20",
       issuer: "李建国",
       requirement: "检查临边护栏、警示标识和作业面隔离措施是否恢复到位，并补充整改现场照片和说明。",
     },
     rectificationInfo: {
-      statusText: "整改已反馈，待巡检资料回传",
+      statusText: "整改中",
       rectifier: "陈立峰",
       team: "华建总承包主体班组",
       updatedAt: "2025-06-12 14:05",
-      summary: "施工方已反馈护栏和警示带恢复完成，待补充整改现场照片和说明供监理审核。",
+      summary: "施工方已完成首轮整改反馈，但整改资料仍需继续补充，当前工单保持整改中。",
     },
     violationSnapshot: {
-      type: "危险区域违规入侵",
-      location: "C区临时堆料区",
+      type: "临边防护缺失",
+      location: "C区4号楼-临边作业面",
       time: "2025-06-12 10:05",
       persons: ["赵某某", "陈某某", "刘某某"],
       confidence: 91,
       img: "https://images.unsplash.com/photo-1565008447742-97f6f38c985c?w=400&h=300&fit=crop&auto=format",
     },
-    reviewStage: "needs-assignment",
+  },
+  {
+    id: "WO-20250612-008",
+    type: "临时用电箱未上锁",
+    site: "工地A",
+    location: "A区1号楼-东侧配电点",
+    status: "re-review",
+    deadline: "2025-06-12",
+    unit: "华建总承包",
+    responsiblePerson: {
+      name: "马国栋",
+      role: "工地负责人",
+      phone: "138****2207",
+      area: "A区1号楼-东侧配电点",
+    },
+    taskDetail: {
+      taskName: "A区1号楼临时用电整改审核",
+      createdAt: "2025-06-12 11:05",
+      issuer: "李建国",
+      requirement: "检查配电箱箱门闭锁、警示标识和周边防护措施是否恢复到位，并审核整改资料。",
+    },
+    rectificationInfo: {
+      statusText: "整改完成，待监理审核",
+      rectifier: "马国栋",
+      team: "华建总承包机电班组",
+      updatedAt: "2025-06-12 15:20",
+      summary: "工地负责人已完成配电箱闭锁和警示标识恢复，整改资料已提交，待监理审核。",
+    },
+    violationSnapshot: {
+      type: "临时用电箱未上锁",
+      location: "A区1号楼-东侧配电点",
+      time: "2025-06-12 10:48",
+      persons: ["吴某某"],
+      confidence: 89,
+      img: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=400&h=300&fit=crop&auto=format",
+    },
+    reviewStage: "ready-review",
+    reviewMaterials: {
+      violation: {
+        title: "初次违规影像",
+        time: "2025-06-12 10:48",
+        img: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=400&h=300&fit=crop&auto=format",
+        desc: "现场配电箱箱门未闭锁，AI识别后生成违规整改工单。",
+      },
+      rectification: {
+        title: "施工整改反馈",
+        time: "2025-06-12 15:20",
+        img: "https://images.unsplash.com/photo-1497366754035-f200968a6e72?w=400&h=300&fit=crop&auto=format",
+        desc: "工地负责人提交配电箱闭锁恢复、警示标识补齐后的整改反馈资料。",
+      },
+      drone: {
+        title: "整改补充资料",
+        time: "2025-06-12 15:32",
+        img: "https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=400&h=300&fit=crop&auto=format",
+        desc: "责任单位补充上传现场整改近景和整体环境影像，供监理审核整改落实情况。",
+      },
+    },
   },
   {
     id: "WO-20250611-003",
@@ -172,6 +259,12 @@ const workOrders: WorkOrder[] = [
     status: "completed",
     deadline: "2025-06-11",
     unit: "兴盛分包",
+    responsiblePerson: {
+      name: "赵建华",
+      role: "工地负责人",
+      phone: "138****2204",
+      area: "D区施工现场-东侧通道",
+    },
     taskDetail: {
       taskName: "D区消防通道清理整改",
       createdAt: "2025-06-11 09:00",
@@ -193,6 +286,23 @@ const workOrders: WorkOrder[] = [
       confidence: 89,
       img: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&auto=format",
     },
+    rectificationDetail: {
+      before: {
+        title: "整改前现场",
+        time: "2025-06-11 08:52",
+        img: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&auto=format",
+        desc: "消防通道被堆放物料占用，通行受阻，存在应急疏散隐患。",
+      },
+      after: {
+        title: "整改后现场",
+        time: "2025-06-11 14:10",
+        img: "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?w=400&h=300&fit=crop&auto=format",
+        desc: "堆放物料已清理完成，消防通道恢复畅通，警示标识同步复位。",
+      },
+      manager: "赵建华",
+      rectifiedAt: "2025-06-11 14:10",
+      summary: "工地负责人组织清理通道堆物并复核现场，确认通行恢复正常后完成整改闭环。",
+    },
   },
   {
     id: "WO-20250610-004",
@@ -202,6 +312,12 @@ const workOrders: WorkOrder[] = [
     status: "completed",
     deadline: "2025-06-11",
     unit: "华建总承包",
+    responsiblePerson: {
+      name: "孙志强",
+      role: "工地负责人",
+      phone: "138****2205",
+      area: "A区2号楼-外立面",
+    },
     taskDetail: {
       taskName: "A区2号楼脚手架防护整改",
       createdAt: "2025-06-10 14:30",
@@ -223,6 +339,23 @@ const workOrders: WorkOrder[] = [
       confidence: 88,
       img: "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=400&h=300&fit=crop&auto=format",
     },
+    rectificationDetail: {
+      before: {
+        title: "整改前现场",
+        time: "2025-06-10 14:18",
+        img: "https://images.unsplash.com/photo-1581094271901-8022df4466f9?w=400&h=300&fit=crop&auto=format",
+        desc: "脚手架外立面防护缺失，作业层局部区域存在坠落风险。",
+      },
+      after: {
+        title: "整改后现场",
+        time: "2025-06-11 09:20",
+        img: "https://images.unsplash.com/photo-1503387762-592deb58ef4e?w=400&h=300&fit=crop&auto=format",
+        desc: "外立面防护网与临边防护已补齐，作业通道和防护设施恢复到位。",
+      },
+      manager: "孙志强",
+      rectifiedAt: "2025-06-11 09:20",
+      summary: "工地负责人组织外架班组补齐防护设施并完成现场复查，整改资料已归档。",
+    },
   },
   {
     id: "WO-20250612-006",
@@ -232,6 +365,12 @@ const workOrders: WorkOrder[] = [
     status: "rectifying",
     deadline: "2025-06-12",
     unit: "华建总承包",
+    responsiblePerson: {
+      name: "郑晓东",
+      role: "工地负责人",
+      phone: "138****2206",
+      area: "B区1号楼配电箱区域",
+    },
     taskDetail: {
       taskName: "B区1号楼临电防护二次整改",
       createdAt: "2025-06-12 11:25",
@@ -254,29 +393,82 @@ const workOrders: WorkOrder[] = [
       img: "https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=400&h=300&fit=crop&auto=format",
     },
   },
+  {
+    id: "WO-20250610-007",
+    type: "临边防护缺失",
+    site: "工地C",
+    location: "C区2号楼屋面",
+    status: "overdue",
+    deadline: "2025-06-11",
+    unit: "华建总承包",
+    responsiblePerson: {
+      name: "梁志刚",
+      role: "工地负责人",
+      phone: "138****2207",
+      area: "C区2号楼屋面作业面",
+    },
+    taskDetail: {
+      taskName: "C区2号楼屋面临边防护整改",
+      createdAt: "2025-06-10 08:40",
+      issuer: "李建国",
+      requirement: "补齐屋面临边护栏和警示带，恢复作业面隔离，并在整改完成后上传现场照片及整改说明。",
+    },
+    rectificationInfo: {
+      statusText: "整改逾期未反馈",
+      rectifier: "梁志刚",
+      team: "华建总承包主体班组",
+      updatedAt: "2025-06-11 18:20",
+      summary: "该工单已超过整改期限，工地负责人未在指定时间内完成整改反馈和资料上报，需立即跟进处理。",
+    },
+    violationSnapshot: {
+      type: "临边防护缺失",
+      location: "C区2号楼-屋面东侧",
+      time: "2025-06-10 08:31",
+      persons: ["冯某某", "张某某"],
+      confidence: 92,
+      img: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop&auto=format",
+    },
+  },
 ];
 
-const droneTeams = [
-  { id: "T001", name: "鹰眼一队", leader: "孙大志", available: 3, total: 5, status: "待命" },
-  { id: "T002", name: "鹰眼二队", leader: "张明远", available: 1, total: 4, status: "执行中" },
-  { id: "T003", name: "天巡三队", leader: "刘海峰", available: 2, total: 4, status: "待命" },
-  { id: "T004", name: "云瞰应急组", leader: "陈启航", available: 1, total: 3, status: "待命" },
+type DroneTeamStatus = "待命" | "忙碌";
+
+type DroneTeam = {
+  id: string;
+  name: string;
+  leader: string;
+  available: number;
+  total: number;
+  status: DroneTeamStatus;
+  defaultPilotName: string;
+  defaultPilotPhone: string;
+};
+
+const droneTeams: DroneTeam[] = [
+  { id: "T001", name: "鹰眼一队", leader: "孙大志", available: 3, total: 5, status: "待命", defaultPilotName: "王飞", defaultPilotPhone: "138****1021" },
+  { id: "T002", name: "鹰眼二队", leader: "张明远", available: 0, total: 4, status: "忙碌", defaultPilotName: "赵航", defaultPilotPhone: "138****2318" },
+  { id: "T003", name: "天巡三队", leader: "刘海峰", available: 2, total: 4, status: "待命", defaultPilotName: "陈越", defaultPilotPhone: "138****6652" },
+  { id: "T004", name: "云瞰应急组", leader: "陈启航", available: 1, total: 3, status: "待命", defaultPilotName: "周宁", defaultPilotPhone: "138****7780" },
 ];
 
 type FlightTask = {
   id: string;
-  workOrderId?: string;
   type: string;
   location: string;
   gps: string;
   deadline: string;
-  status: "pending-assignment" | "assigned" | "completed";
+  status: "pending-assignment" | "assigned" | "completed" | "overdue";
   supervisorName: string;
   requirement: string;
   assignedTeamId?: string;
   assignedTeamName?: string;
   assignedLeader?: string;
   assignedAt?: string;
+  assignedPilotName?: string;
+  assignedPilotPhone?: string;
+  completedAt?: string;
+  completionSummary?: string;
+  statusNote?: string;
 };
 
 const initialFlightTasks: FlightTask[] = [
@@ -313,6 +505,43 @@ const initialFlightTasks: FlightTask[] = [
     assignedTeamName: "鹰眼二队",
     assignedLeader: "张明远",
     assignedAt: "2025-06-11 09:20",
+    assignedPilotName: "赵航",
+    assignedPilotPhone: "138****2318",
+  },
+  {
+    id: "FT-20250610-004",
+    type: "消防通道日常巡检",
+    location: "D区施工现场-东侧通道",
+    gps: "30.564118, 114.301205",
+    deadline: "2025-06-10 17:30",
+    status: "completed",
+    supervisorName: "李建国",
+    requirement: "巡检消防通道通行状况、警示标识和周边堆物情况，回传全景和近景影像。",
+    assignedTeamId: "T001",
+    assignedTeamName: "鹰眼一队",
+    assignedLeader: "孙大志",
+    assignedAt: "2025-06-10 14:10",
+    assignedPilotName: "王飞",
+    assignedPilotPhone: "138****1021",
+    completedAt: "2025-06-10 16:42",
+    completionSummary: "消防通道障碍物已清理完成，现场通行恢复正常，影像资料已回传归档。",
+  },
+  {
+    id: "FT-20250611-005",
+    type: "临时用电安全巡检",
+    location: "A区1号楼-东侧配电点",
+    gps: "30.567004, 114.303816",
+    deadline: "2025-06-11 17:00",
+    status: "overdue",
+    supervisorName: "李建国",
+    requirement: "巡检临时用电配电点箱门闭锁、警示标识和周边隔离措施，回传现场近景及全景影像。",
+    assignedTeamId: "T003",
+    assignedTeamName: "天巡三队",
+    assignedLeader: "刘海峰",
+    assignedAt: "2025-06-11 13:10",
+    assignedPilotName: "陈越",
+    assignedPilotPhone: "138****6652",
+    statusNote: "当前飞拍任务已逾期，系统将自动上报和统计逾期飞拍任务。",
   },
 ];
 
@@ -344,7 +573,7 @@ const supervisorLeaderThreads: SupervisorLeaderThread[] = [
     assigned: true,
     status: "online",
     tag: "已指派",
-    workOrder: "WO-20250612-002",
+    workOrder: "FT-20250612-002",
     unread: 2,
     lastActive: "刚刚",
     messages: [
@@ -360,7 +589,7 @@ const supervisorLeaderThreads: SupervisorLeaderThread[] = [
     assigned: true,
     status: "busy",
     tag: "已指派",
-    workOrder: "WO-20250610-004",
+    workOrder: "FT-20250611-003",
     unread: 0,
     lastActive: "18分钟前",
     messages: [
@@ -379,7 +608,7 @@ function createAssignedLeaderThread(teamId: string, sourceId: string, messageTex
     teamName: team.name,
     leader: team.leader,
     assigned: true,
-    status: team.status === "执行中" ? "busy" : "online",
+    status: team.status === "忙碌" ? "busy" : "online",
     tag: "已指派",
     workOrder: sourceId,
     unread: 0,
@@ -388,7 +617,7 @@ function createAssignedLeaderThread(teamId: string, sourceId: string, messageTex
       {
         id: `m-${Date.now()}`,
         from: "me",
-        text: messageText ?? `${team.leader}，巡检任务 ${sourceId} 已指派给 ${team.name}，请安排飞手执行并及时同步巡检进展。`,
+        text: messageText ?? `${team.leader}，飞拍任务 ${sourceId} 已指派给 ${team.name}，请安排飞手执行并及时同步任务进展。`,
         time: "刚刚",
       },
     ],
@@ -397,13 +626,13 @@ function createAssignedLeaderThread(teamId: string, sourceId: string, messageTex
 // ─── Sub-screens ─────────────────────────────────────────────
 
 function AssignDroneModal({
-  workOrderId,
+  taskId,
   onClose,
   onAssigned,
 }: {
-  workOrderId: string;
+  taskId: string;
   onClose: () => void;
-  onAssigned: (teamId: string, workOrderId: string) => void;
+  onAssigned: (teamId: string, taskId: string) => void;
 }) {
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
@@ -411,7 +640,7 @@ function AssignDroneModal({
 
   const handleSubmit = () => {
     if (!selectedTeam) return;
-    onAssigned(selectedTeam, workOrderId);
+    onAssigned(selectedTeam, taskId);
     setSubmitted(true);
   };
 
@@ -437,7 +666,7 @@ function AssignDroneModal({
 
   return (
     <div className="flex flex-col h-full">
-      <NavBar title="指派飞手团队" subtitle={`工单 ${workOrderId}`} onBack={onClose} />
+      <NavBar title="指派飞手团队" subtitle={`任务 ${taskId}`} onBack={onClose} />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div>
           <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--muted-foreground)" }}>选择飞手团队</h3>
@@ -445,11 +674,17 @@ function AssignDroneModal({
             {droneTeams.map((team) => (
               <button
                 key={team.id}
-                onClick={() => setSelectedTeam(team.id)}
+                onClick={() => {
+                  if (team.status === "忙碌") return;
+                  setSelectedTeam(team.id);
+                }}
                 className="w-full rounded-xl p-4 text-left transition-all"
                 style={{
-                  background: selectedTeam === team.id ? "rgba(47,125,246,0.15)" : "var(--card)",
+                  background: team.status === "忙碌"
+                    ? "rgba(100,115,134,0.06)"
+                    : selectedTeam === team.id ? "rgba(47,125,246,0.15)" : "var(--card)",
                   border: `1px solid ${selectedTeam === team.id ? "var(--primary)" : "var(--border)"}`,
+                  opacity: team.status === "忙碌" ? 0.72 : 1,
                 }}
               >
                 <div className="flex items-center justify-between">
@@ -458,12 +693,15 @@ function AssignDroneModal({
                     <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
                       负责人: {team.leader} · 可用飞手 {team.available}/{team.total}
                     </div>
+                    <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                      {team.status === "待命" ? "待命：当前有可用飞手，可立即承接任务" : "忙碌：当前无可用飞手，暂不可指派"}
+                    </div>
                   </div>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full"
                     style={{
-                      background: team.status === "待命" ? "rgba(53,208,127,0.15)" : "rgba(47,125,246,0.15)",
-                      color: team.status === "待命" ? "var(--success)" : "var(--primary)",
+                      background: team.status === "待命" ? "rgba(53,208,127,0.15)" : "rgba(255,122,0,0.14)",
+                      color: team.status === "待命" ? "var(--success)" : "var(--caution)",
                     }}
                   >
                     {team.status}
@@ -494,9 +732,10 @@ function AssignDroneModal({
 
 function FlightTaskStatusBadge({ status }: { status: FlightTask["status"] }) {
   const map = {
-    "pending-assignment": { label: "待指派", bg: "rgba(255,224,71,0.16)", color: "var(--caution)" },
-    assigned: { label: "已派发", bg: "rgba(0,107,255,0.12)", color: "var(--primary)" },
+    "pending-assignment": { label: "待指派团队", bg: "rgba(255,224,71,0.16)", color: "var(--caution)" },
+    assigned: { label: "进行中", bg: "rgba(0,107,255,0.12)", color: "var(--primary)" },
     completed: { label: "已完成", bg: "rgba(53,208,127,0.14)", color: "var(--success)" },
+    overdue: { label: "逾期", bg: "var(--danger)", color: "#fff" },
   };
   const item = map[status];
   return (
@@ -527,7 +766,13 @@ function matchesCreatedTimeRange(createdAt: string, range: string) {
   return true;
 }
 
-function SupervisorWorkOrderStatusBadge({ status }: { status: WorkOrder["status"] }) {
+function SupervisorWorkOrderStatusBadge({
+  status,
+  reviewStage: _reviewStage,
+}: {
+  status: WorkOrder["status"];
+  reviewStage?: WorkOrder["reviewStage"];
+}) {
   if (status === "pending-deadline") {
     return (
       <span
@@ -541,6 +786,23 @@ function SupervisorWorkOrderStatusBadge({ status }: { status: WorkOrder["status"
       >
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "var(--warning)" }} />
         待设置期限
+      </span>
+    );
+  }
+
+  if (status === "overdue") {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-full font-medium"
+        style={{
+          background: "var(--danger)",
+          color: "#fff",
+          padding: "1px 8px",
+          fontSize: 11,
+        }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: "#fff" }} />
+        逾期
       </span>
     );
   }
@@ -569,24 +831,24 @@ function FlightTaskTab({
   tasks,
   onCreate: _onCreate,
   onAssign,
+  onOpenDetail,
 }: {
   tasks: FlightTask[];
   onCreate: () => void;
   onAssign: (id: string) => void;
+  onOpenDetail: (id: string) => void;
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [teamFilter, setTeamFilter] = useState("all");
   const teamOptions = [
     { key: "all", label: "全部团队" },
-    { key: "T001", label: "团队A" },
-    { key: "T002", label: "团队B" },
-    { key: "T003", label: "团队C" },
-    { key: "T004", label: "团队D" },
+    ...droneTeams.map((team) => ({ key: team.id, label: team.name })),
   ];
   const statusOptions = [
     { key: "all", label: "全部状态" },
-    { key: "pending-assignment", label: "待指派" },
+    { key: "pending-assignment", label: "待指派团队" },
     { key: "assigned", label: "进行中" },
+    { key: "overdue", label: "逾期" },
     { key: "completed", label: "已完成" },
   ];
   const filteredTasks = tasks.filter((task) => {
@@ -596,11 +858,24 @@ function FlightTaskTab({
   });
   const pendingTasks = filteredTasks.filter((task) => task.status === "pending-assignment");
   const assignedTasks = filteredTasks.filter((task) => task.status === "assigned");
+  const overdueTasks = filteredTasks.filter((task) => task.status === "overdue");
   const completedTasks = filteredTasks.filter((task) => task.status === "completed");
-  const activeTasks = filteredTasks.filter((task) => task.status !== "pending-assignment");
 
   const renderTaskCard = (task: FlightTask) => (
-    <div key={task.id} className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+    <div
+      key={task.id}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpenDetail(task.id)}
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpenDetail(task.id);
+        }
+      }}
+      className="rounded-xl p-4 space-y-3 cursor-pointer active:opacity-80"
+      style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+    >
       <div className="flex items-start justify-between gap-2">
         <div>
           <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{task.type}</div>
@@ -628,17 +903,26 @@ function FlightTaskTab({
         </div>
       </div>
 
-      <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{task.requirement}</p>
+      <div className="space-y-2">
+        <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{task.requirement}</p>
+        {task.status === "overdue" && task.statusNote && (
+          <div className="text-xs leading-relaxed rounded-lg px-2.5 py-2" style={{ background: "rgba(255,74,74,0.08)", color: "var(--danger)" }}>
+            {task.statusNote}
+          </div>
+        )}
+      </div>
 
       <div className="flex items-center justify-between gap-3 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
         <div className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
-          {task.workOrderId ? `巡检任务编号：${task.workOrderId}` : "普通工地安全巡检任务"}
-          {task.assignedTeamName ? ` · ${task.assignedTeamName}` : ""}
+          发起监理：{task.supervisorName} · 独立飞拍任务
         </div>
         {task.status === "pending-assignment" ? (
           <button
             type="button"
-            onClick={() => onAssign(task.id)}
+            onClick={(event) => {
+              event.stopPropagation();
+              onAssign(task.id);
+            }}
             className="text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center gap-1 flex-shrink-0"
             style={{ background: "var(--primary)", color: "#fff" }}
           >
@@ -646,7 +930,9 @@ function FlightTaskTab({
             指派团队
           </button>
         ) : (
-          <span className="text-xs flex-shrink-0" style={{ color: "var(--primary)" }}>{task.assignedLeader}</span>
+          <span className="text-xs flex-shrink-0" style={{ color: "var(--primary)" }}>
+            {task.assignedTeamName} · {task.assignedPilotName ?? task.assignedLeader}
+          </span>
         )}
       </div>
     </div>
@@ -657,9 +943,9 @@ function FlightTaskTab({
       <div className="p-4 flex-shrink-0 space-y-4">
         <div className="grid grid-cols-3 gap-3">
           {[
-            { label: "待指派", value: pendingTasks.length, color: "var(--caution)", bg: "rgba(255,224,71,0.12)" },
-            { label: "进行中", value: activeTasks.length, color: "var(--primary)", bg: "rgba(0,107,255,0.10)" },
-            { label: "团队数", value: teamOptions.length - 1, color: "var(--success)", bg: "rgba(53,208,127,0.10)" },
+            { label: "待指派团队", value: pendingTasks.length, color: "var(--caution)", bg: "rgba(255,224,71,0.12)" },
+            { label: "进行中", value: assignedTasks.length, color: "var(--primary)", bg: "rgba(0,107,255,0.10)" },
+            { label: "逾期", value: overdueTasks.length, color: "var(--danger)", bg: "rgba(255,74,74,0.10)" },
           ].map((item) => (
             <div key={item.label} className="rounded-xl p-3 text-center" style={{ background: item.bg }}>
               <div className="font-bold" style={{ fontSize: 22, color: item.color }}>{item.value}</div>
@@ -707,7 +993,7 @@ function FlightTaskTab({
             <Plus size={20} />
           </div>
           <div className="flex-1">
-            <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>创建飞行任务</div>
+            <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>创建飞拍任务</div>
             <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>录入巡检位置、GPS、指定截止时间和拍摄要求</div>
           </div>
           <ChevronRight size={16} color="var(--primary)" />
@@ -718,7 +1004,7 @@ function FlightTaskTab({
       <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4">
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>待指派飞行任务</h3>
+            <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>待指派团队飞拍任务</h3>
             <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "rgba(255,224,71,0.14)", color: "var(--caution)" }}>
               {pendingTasks.length} 项
             </span>
@@ -727,7 +1013,7 @@ function FlightTaskTab({
             {pendingTasks.map(renderTaskCard)}
             {pendingTasks.length === 0 && (
               <div className="rounded-xl p-6 text-center text-sm" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
-                暂无待指派飞行任务
+                暂无待指派团队飞拍任务
               </div>
             )}
           </div>
@@ -735,15 +1021,28 @@ function FlightTaskTab({
 
         {assignedTasks.length > 0 && (
           <section>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>进行中飞行任务</h3>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>进行中飞拍任务</h3>
             <div className="space-y-3">
               {assignedTasks.map(renderTaskCard)}
             </div>
           </section>
         )}
+        {overdueTasks.length > 0 && (
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>逾期飞拍任务</h3>
+              <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "rgba(255,74,74,0.14)", color: "var(--danger)" }}>
+                {overdueTasks.length} 项
+              </span>
+            </div>
+            <div className="space-y-3">
+              {overdueTasks.map(renderTaskCard)}
+            </div>
+          </section>
+        )}
         {completedTasks.length > 0 && (
           <section>
-            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>已完成飞行任务</h3>
+            <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>已完成飞拍任务</h3>
             <div className="space-y-3">
               {completedTasks.map(renderTaskCard)}
             </div>
@@ -751,10 +1050,138 @@ function FlightTaskTab({
         )}
         {filteredTasks.length === 0 && (
           <div className="rounded-xl p-6 text-center text-sm" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
-            当前筛选条件下暂无飞行任务
+            当前筛选条件下暂无飞拍任务
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function FlightTaskDetailPage({
+  task,
+  onBack,
+  onAssign,
+}: {
+  task: FlightTask;
+  onBack: () => void;
+  onAssign: (id: string) => void;
+}) {
+  const assignedTeam = task.assignedTeamId
+    ? droneTeams.find((team) => team.id === task.assignedTeamId)
+    : undefined;
+
+  const baseInfo = [
+    { label: "任务编号", value: task.id },
+    { label: "任务类型", value: task.type },
+    { label: "巡检位置", value: task.location },
+    { label: "GPS坐标", value: task.gps },
+    { label: "截止时间", value: task.deadline },
+    { label: "发起监理", value: task.supervisorName },
+    { label: "任务性质", value: "独立飞拍任务" },
+    { label: "任务状态", value: task.status === "completed" ? "完成" : task.status === "overdue" ? "逾期" : task.status === "assigned" ? "进行中" : "待指派团队" },
+  ];
+
+  return (
+    <div className="flex flex-col h-full">
+      <NavBar title="任务详情" subtitle={task.id} onBack={onBack} />
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{task.type}</div>
+              <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                {task.location} · {task.supervisorName}
+              </div>
+            </div>
+            <FlightTaskStatusBadge status={task.status} />
+          </div>
+          <div className="rounded-lg p-3 text-xs leading-relaxed" style={{ background: "rgba(0,107,255,0.08)", color: "var(--secondary-foreground)" }}>
+            {task.status === "pending-assignment"
+              ? "当前任务待指派飞行团队，详情页展示任务基本信息，确认后可直接进入团队派发流程。"
+              : task.status === "overdue"
+                ? (task.statusNote ?? "当前飞拍任务已逾期，系统将自动上报和统计逾期飞拍任务。")
+                : "当前任务已进入执行流程，详情页展示任务基本信息、承接团队信息和执行飞手信息。"}
+          </div>
+        </div>
+
+        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>任务基本信息</div>
+          <div className="grid grid-cols-2 gap-3">
+            {baseInfo.map((item) => (
+              <div key={item.label}>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+            <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>任务详情</div>
+            <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{task.requirement}</div>
+          </div>
+        </div>
+
+        {task.status !== "pending-assignment" && (
+          <>
+            <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+              <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>承接团队信息</div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "承接团队", value: task.assignedTeamName ?? "未指派" },
+                  { label: "团队负责人", value: task.assignedLeader ?? "未指派" },
+                  { label: "指派时间", value: task.assignedAt ?? "未记录" },
+                  { label: "团队状态", value: assignedTeam ? `${assignedTeam.status}（${assignedTeam.status === "待命" ? "当前有可用飞手" : "当前无可用飞手"}` + "）" : "未记录" },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                    <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+              <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>执行飞手信息</div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "执行飞手", value: task.assignedPilotName ?? "待分配" },
+                  { label: "联系方式", value: task.assignedPilotPhone ?? "待分配" },
+                  { label: "执行状态", value: task.status === "completed" ? "完成" : task.status === "overdue" ? "已逾期" : "执行中" },
+                  { label: "完成时间", value: task.completedAt ?? "未完成" },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                    <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              {(task.completionSummary || task.statusNote) && (
+                <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                  <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
+                    {task.status === "overdue" ? "逾期说明" : "执行结果"}
+                  </div>
+                  <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
+                    {task.status === "overdue" ? task.statusNote : task.completionSummary}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+
+      {task.status === "pending-assignment" && (
+        <div className="p-4 flex-shrink-0" style={{ borderTop: "1px solid var(--border)" }}>
+          <button
+            type="button"
+            onClick={() => onAssign(task.id)}
+            className="w-full py-3 rounded-xl font-semibold text-sm"
+            style={{ background: "var(--primary)", color: "#fff" }}
+          >
+            去派发任务
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -791,7 +1218,7 @@ function FlightTaskCreatePage({
 
   return (
     <div className="flex flex-col h-full">
-      <NavBar title="创建飞行任务" subtitle="巡检位置、截止时间与拍摄要求" onBack={onBack} />
+      <NavBar title="创建飞拍任务" subtitle="巡检位置、截止时间与拍摄要求" onBack={onBack} />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-2">
@@ -851,7 +1278,7 @@ function FlightTaskCreatePage({
             color: canSubmit ? "#fff" : "var(--muted-foreground)",
           }}
         >
-          创建并进入待指派
+          创建并进入待指派团队
         </button>
       </div>
     </div>
@@ -880,7 +1307,7 @@ function AssignFlightTaskModal({
   if (submitted) {
     return (
       <div className="flex flex-col h-full">
-        <NavBar title="派发飞行任务" onBack={onClose} />
+        <NavBar title="派发飞拍任务" onBack={onClose} />
         <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
           <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: "rgba(53,208,127,0.15)" }}>
             <CheckCircle2 size={32} color="var(--success)" />
@@ -902,7 +1329,7 @@ function AssignFlightTaskModal({
 
   return (
     <div className="flex flex-col h-full">
-      <NavBar title="派发飞行任务" subtitle={task.id} onBack={onClose} />
+      <NavBar title="派发飞拍任务" subtitle={task.id} onBack={onClose} />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="rounded-xl p-4" style={{ background: "rgba(0,107,255,0.08)", border: "1px solid rgba(0,107,255,0.22)" }}>
           <div className="text-xs font-semibold mb-2" style={{ color: "var(--primary)" }}>待派发任务</div>
@@ -925,11 +1352,17 @@ function AssignFlightTaskModal({
               <button
                 key={team.id}
                 type="button"
-                onClick={() => setSelectedTeam(team.id)}
+                onClick={() => {
+                  if (team.status === "忙碌") return;
+                  setSelectedTeam(team.id);
+                }}
                 className="w-full rounded-xl p-4 text-left transition-all"
                 style={{
-                  background: selectedTeam === team.id ? "rgba(0,107,255,0.12)" : "var(--card)",
+                  background: team.status === "忙碌"
+                    ? "rgba(100,115,134,0.06)"
+                    : selectedTeam === team.id ? "rgba(0,107,255,0.12)" : "var(--card)",
                   border: `1.5px solid ${selectedTeam === team.id ? "var(--primary)" : "var(--border)"}`,
+                  opacity: team.status === "忙碌" ? 0.72 : 1,
                 }}
               >
                 <div className="flex items-center justify-between">
@@ -938,12 +1371,15 @@ function AssignFlightTaskModal({
                     <div className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
                       负责人: {team.leader} · 可用飞手 {team.available}/{team.total}
                     </div>
+                    <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                      {team.status === "待命" ? "待命：当前有可用飞手，可立即承接任务" : "忙碌：当前无可用飞手，暂不可指派"}
+                    </div>
                   </div>
                   <span
                     className="text-xs px-2 py-0.5 rounded-full"
                     style={{
-                      background: team.status === "待命" ? "rgba(53,208,127,0.15)" : "rgba(0,107,255,0.12)",
-                      color: team.status === "待命" ? "var(--success)" : "var(--primary)",
+                      background: team.status === "待命" ? "rgba(53,208,127,0.15)" : "rgba(255,122,0,0.14)",
+                      color: team.status === "待命" ? "var(--success)" : "var(--caution)",
                     }}
                   >
                     {team.status}
@@ -987,6 +1423,7 @@ function ReReviewDetail({
   const [note, setNote] = useState("");
   const [localResult, setLocalResult] = useState<"approved" | "rejected" | undefined>(result);
   const materials = workOrder.reviewMaterials;
+  const violationImage = workOrder.violationSnapshot;
   const { taskDetail, rectificationInfo } = workOrder;
 
   const submitDecision = (decision: "approved" | "rejected") => {
@@ -994,14 +1431,16 @@ function ReReviewDetail({
     onDecision(workOrder.id, decision, note);
   };
 
-  const materialList = [
-    { key: "violation", data: materials.violation, accent: "var(--danger)" },
-    { key: "rectification", data: materials.rectification, accent: "var(--caution)" },
-  ] as const;
+  const materialList = materials
+    ? [
+      { key: "violation", data: materials.violation, accent: "var(--danger)" },
+      { key: "rectification", data: materials.rectification, accent: "var(--caution)" },
+    ] as const
+    : [];
 
   return (
     <div className="flex flex-col h-full">
-      <NavBar title="工单复审" subtitle={workOrder.id} onBack={onBack} />
+      <NavBar title="工单审核" subtitle={workOrder.id} onBack={onBack} />
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
           <div className="flex items-start justify-between gap-2">
@@ -1019,10 +1458,10 @@ function ReReviewDetail({
                   color: "#fff",
                 }}
               >
-                {localResult === "approved" ? "复审通过" : "复审驳回"}
+                {localResult === "approved" ? "审核通过" : "审核驳回"}
               </span>
             ) : (
-              <SupervisorWorkOrderStatusBadge status="re-review" />
+              <SupervisorWorkOrderStatusBadge status="re-review" reviewStage={workOrder.reviewStage} />
             )}
           </div>
           <div className="rounded-lg p-3 text-xs leading-relaxed"
@@ -1037,6 +1476,7 @@ function ReReviewDetail({
             {[
               { label: "任务名称", value: taskDetail.taskName },
               { label: "工单编号", value: workOrder.id },
+              { label: "违规工单类型", value: workOrder.type },
               { label: "发起时间", value: taskDetail.createdAt },
               { label: "发起人", value: taskDetail.issuer },
             ].map((item) => (
@@ -1053,24 +1493,78 @@ function ReReviewDetail({
         </div>
 
         <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-          <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>整改情况</div>
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              { label: "整改状态", value: rectificationInfo.statusText },
-              { label: "整改人", value: rectificationInfo.rectifier },
-              { label: "整改班组", value: rectificationInfo.team },
-              { label: "更新时间", value: rectificationInfo.updatedAt },
-            ].map((item) => (
-              <div key={item.label}>
-                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
-                <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+          {workOrder.status === "completed" ? (
+            <>
+              <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>整改详情</div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "工地负责人", value: workOrder.rectificationDetail?.manager ?? workOrder.responsiblePerson.name },
+                  { label: "整改时间", value: workOrder.rectificationDetail?.rectifiedAt ?? rectificationInfo.updatedAt },
+                  { label: "整改班组", value: rectificationInfo.team },
+                  { label: "整改状态", value: rectificationInfo.statusText },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                    <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-          <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-            <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>整改说明</div>
-            <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{rectificationInfo.summary}</div>
-          </div>
+              <div className="grid grid-cols-2 gap-3 mt-3">
+                {[
+                  workOrder.rectificationDetail?.before ?? {
+                    title: "整改前现场",
+                    time: violationImage.time,
+                    img: violationImage.img,
+                    desc: "违规现场原始影像。",
+                  },
+                  workOrder.rectificationDetail?.after ?? {
+                    title: "整改后现场",
+                    time: rectificationInfo.updatedAt,
+                    img: violationImage.img,
+                    desc: "整改完成后现场复核影像。",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                    <img src={item.img} alt={item.title} className="w-full object-cover" style={{ height: 132 }} />
+                    <div className="p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{item.title}</div>
+                        <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{item.time}</div>
+                      </div>
+                      <div className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{item.desc}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>整改详情说明</div>
+                <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
+                  {workOrder.rectificationDetail?.summary ?? rectificationInfo.summary}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>整改情况</div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "整改状态", value: rectificationInfo.statusText },
+                  { label: "整改人", value: rectificationInfo.rectifier },
+                  { label: "整改班组", value: rectificationInfo.team },
+                  { label: "更新时间", value: rectificationInfo.updatedAt },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                    <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>整改说明</div>
+                <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{rectificationInfo.summary}</div>
+              </div>
+            </>
+          )}
         </div>
 
         {materials ? (
@@ -1096,15 +1590,15 @@ function ReReviewDetail({
               </div>
             ))}
           </div>
-        ) : (
+        ) : workOrder.status !== "completed" ? (
           <div className="rounded-xl p-6 text-center text-sm" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
             整改资料尚未补充完整，请先完成整改反馈后再进入审核。
           </div>
-        )}
+        ) : null}
 
         {!localResult && (
           <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-            <div className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>复审意见</div>
+            <div className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>审核意见</div>
             <textarea
               value={note}
               onChange={(event) => setNote(event.target.value)}
@@ -1133,7 +1627,7 @@ function ReReviewDetail({
             style={{ background: "var(--success)", color: "#fff" }}
           >
             <CheckCircle2 size={16} />
-            复审通过
+            审核通过
           </button>
         </div>
       )}
@@ -1156,16 +1650,19 @@ function WorkOrderTab({
 }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [siteFilter, setSiteFilter] = useState("all");
+  const [typeFilter, setTypeFilter] = useState("all");
   const [createdTimeFilter, setCreatedTimeFilter] = useState("all");
   const [query, setQuery] = useState("");
   const statusOptions = [
     { key: "all", label: "全部" },
     { key: "pending-deadline", label: "待设置期限" },
     { key: "rectifying", label: "整改中" },
+    { key: "overdue", label: "逾期" },
     { key: "re-review", label: "待审核" },
     { key: "completed", label: "已完成" },
   ];
   const siteOptions = ["all", ...Array.from(new Set(workOrders.map((item) => item.site)))];
+  const typeOptions = ["all", ...Array.from(new Set(workOrders.map((item) => item.type)))];
   const createdTimeOptions = [
     { key: "all", label: "全部时间" },
     { key: "1h", label: "1小时内" },
@@ -1174,14 +1671,17 @@ function WorkOrderTab({
   ];
 
   const filtered = workOrders.filter((w) => {
-    const matchesStatus = statusFilter === "all" || w.status === statusFilter;
+    const matchesStatus = statusFilter === "all"
+      || (statusFilter === "re-review" && w.status === "re-review" && w.reviewStage === "ready-review")
+      || (statusFilter !== "re-review" && w.status === statusFilter);
     const matchesSite = siteFilter === "all" || w.site === siteFilter;
+    const matchesType = typeFilter === "all" || w.type === typeFilter;
     const matchesCreatedTime = matchesCreatedTimeRange(w.taskDetail.createdAt, createdTimeFilter);
     const keyword = query.trim().toLowerCase();
-    if (!keyword) return matchesStatus && matchesSite && matchesCreatedTime;
+    if (!keyword) return matchesStatus && matchesSite && matchesType && matchesCreatedTime;
 
     const searchable = `${w.id}${w.type}${w.site}${w.location}${w.deadline}${w.unit}${w.taskDetail.createdAt}`.toLowerCase();
-    return matchesStatus && matchesSite && matchesCreatedTime && searchable.includes(keyword);
+    return matchesStatus && matchesSite && matchesType && matchesCreatedTime && searchable.includes(keyword);
   });
 
   return (
@@ -1200,7 +1700,7 @@ function WorkOrderTab({
       </div>
 
       <div className="px-4 py-3 flex-shrink-0">
-        <div className="rounded-xl p-3 grid grid-cols-3 gap-2.5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+        <div className="rounded-xl p-3 grid grid-cols-2 gap-2.5" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
           <label className="space-y-1">
             <div className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>状态</div>
             <select
@@ -1211,6 +1711,19 @@ function WorkOrderTab({
             >
               {statusOptions.map((option) => (
                 <option key={option.key} value={option.key}>{option.label}</option>
+              ))}
+            </select>
+          </label>
+          <label className="space-y-1">
+            <div className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>违规工单类型</div>
+            <select
+              value={typeFilter}
+              onChange={(event) => setTypeFilter(event.target.value)}
+              className="w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ background: "var(--secondary)", border: "1px solid var(--border)", color: "var(--foreground)" }}
+            >
+              {typeOptions.map((option) => (
+                <option key={option} value={option}>{option === "all" ? "全部类型" : option}</option>
               ))}
             </select>
           </label>
@@ -1274,7 +1787,7 @@ function WorkOrderTab({
                       <div className="font-semibold text-sm" style={{ color: "var(--foreground)" }}>{wo.type}</div>
                       <div className="text-xs mt-0.5 font-mono" style={{ color: "var(--muted-foreground)" }}>{wo.id}</div>
                     </div>
-                    <SupervisorWorkOrderStatusBadge status={wo.status} />
+                    <SupervisorWorkOrderStatusBadge status={wo.status} reviewStage={wo.reviewStage} />
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <div className="flex items-center gap-1" style={{ color: "var(--accent)" }}>
@@ -1299,12 +1812,21 @@ function WorkOrderTab({
                           待监理设置整改期限，设置后工单进入整改中
                         </div>
                       )}
+                      {wo.status === "rectifying" && (
+                        <div className="text-xs mt-1" style={{ color: "var(--caution)" }}>
+                          整改中，责任单位正在补充整改资料
+                        </div>
+                      )}
+                      {wo.status === "overdue" && (
+                        <div className="text-xs mt-1" style={{ color: "var(--danger)" }}>
+                          当前工单已逾期，系统将自动上报和统计逾期工单
+                        </div>
+                      )}
                       {wo.status === "re-review" && (
                         <div className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-                          {reviewResults[wo.id] === "approved" && "复审通过，流程结束"}
-                          {reviewResults[wo.id] === "rejected" && "复审驳回，需重新整改"}
+                          {reviewResults[wo.id] === "approved" && "审核通过，流程结束"}
+                          {reviewResults[wo.id] === "rejected" && "审核驳回，需重新整改"}
                           {!reviewResults[wo.id] && wo.reviewStage === "ready-review" && "整改资料已提交，待监理审核"}
-                          {!reviewResults[wo.id] && wo.reviewStage === "needs-assignment" && "待整改资料补充"}
                         </div>
                       )}
                     </div>
@@ -1319,7 +1841,7 @@ function WorkOrderTab({
                         style={{ background: "var(--primary)", color: "#fff" }}
                       >
                         <CheckCircle2 size={12} />
-                        进入复审
+                        进入审核
                       </button>
                     ) : (
                       <div className="flex items-center gap-1 flex-shrink-0" style={{ color: "var(--accent)" }}>
@@ -1383,7 +1905,7 @@ function WorkOrderDetail({
                   {workOrder.location} · {workOrder.unit}
                 </div>
               </div>
-              <SupervisorWorkOrderStatusBadge status={workOrder.status} />
+              <SupervisorWorkOrderStatusBadge status={workOrder.status} reviewStage={workOrder.reviewStage} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -1394,19 +1916,21 @@ function WorkOrderDetail({
                 <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>当前进度</div>
                 <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>
                   {workOrder.status === "pending-deadline" && "待设置整改期限"}
-                  {result === "approved" && workOrder.status === "completed" && "复审通过"}
-                  {result === "rejected" && workOrder.status === "rectifying" && "二次整改中"}
-                  {result === "rejected" && workOrder.status !== "rectifying" && "复审驳回"}
-                  {!result && workOrder.reviewStage === "ready-review" && "待审核"}
-                  {!result && workOrder.reviewStage === "needs-assignment" && "待整改资料补充"}
-                  {!result && !workOrder.reviewStage && workOrder.status !== "pending-deadline" && "整改处理中"}
+                  {workOrder.status === "overdue" && "整改逾期未反馈"}
+                  {workOrder.status === "completed" && "整改完成"}
+                  {workOrder.status === "rectifying" && result === "rejected" && "二次整改中"}
+                  {workOrder.status === "rectifying" && !result && "整改中"}
+                  {workOrder.status !== "rectifying" && result === "rejected" && "审核驳回"}
+                  {workOrder.status === "re-review" && !result && workOrder.reviewStage === "ready-review" && "待审核"}
                 </div>
               </div>
             </div>
             <div className="rounded-lg p-3 text-xs leading-relaxed" style={{ background: "rgba(0,107,255,0.08)", color: "var(--secondary-foreground)" }}>
               {workOrder.status === "pending-deadline"
                 ? "请先为该违规工单设置整改期限，设置完成后责任单位将按该期限推进整改。"
-                : "该详情为工单独立信息页，包含违规现场资料、AI识别结果以及后续整改资料。"}
+                : workOrder.status === "overdue"
+                  ? "当前工单已逾期，系统将自动上报和统计逾期工单。"
+                  : "该详情为工单独立信息页，包含违规现场资料、AI识别结果以及责任单位提交的整改资料。"}
             </div>
           </div>
         </div>
@@ -1526,6 +2050,31 @@ function WorkOrderDetail({
               </div>
             )}
           </div>
+
+          {workOrder.status === "overdue" && (
+            <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+              <div className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>工地负责人信息</div>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { label: "负责人", value: workOrder.responsiblePerson.name },
+                  { label: "岗位", value: workOrder.responsiblePerson.role },
+                  { label: "联系方式", value: workOrder.responsiblePerson.phone },
+                  { label: "负责区域", value: workOrder.responsiblePerson.area },
+                ].map((item) => (
+                  <div key={item.label}>
+                    <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>{item.label}</div>
+                    <div className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>逾期说明</div>
+                <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
+                  当前工单已逾期，系统将自动上报和统计逾期工单。
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1554,7 +2103,7 @@ function WorkOrderDetail({
             className="w-full py-3 rounded-xl font-semibold text-sm"
             style={{ background: "var(--primary)", color: "#fff" }}
           >
-            进入复审
+            进入审核
           </button>
         </div>
       )}
@@ -1563,7 +2112,8 @@ function WorkOrderDetail({
 }
 
 const exportModules = [
-  { key: "workorders", label: "整改工单记录", desc: "责任单位、状态、截止时间、复审结果" },
+  { key: "workorders", label: "整改工单记录", desc: "责任单位、状态、截止时间、审核结果" },
+  { key: "flightTasks", label: "飞拍任务导出", desc: "任务类型、指派团队、执行飞手、完成时间" },
   { key: "metrics", label: "看板统计指标", desc: "整改率、违规类型分布、整体评分" },
 ];
 
@@ -2102,7 +2652,7 @@ function MessageTab({
           })}
           {filteredThreads.length === 0 && (
             <div className="rounded-xl p-4 text-center text-sm" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
-              暂无会话，请先在工单中指派飞行团队
+              暂无会话，请先在飞拍任务中指派飞行团队
             </div>
           )}
         </div>
@@ -2198,6 +2748,7 @@ function MessageTab({
 
 function HomeTab({
   workOrders,
+  flightTasks,
   onWorkOrderClick,
   onWorkOrderOpen,
   onFlightTaskClick,
@@ -2206,6 +2757,7 @@ function HomeTab({
   pendingReReviewCount,
 }: {
   workOrders: WorkOrder[];
+  flightTasks: FlightTask[];
   onWorkOrderClick: () => void;
   onWorkOrderOpen: (id: string) => void;
   onFlightTaskClick: () => void;
@@ -2214,12 +2766,15 @@ function HomeTab({
   pendingReReviewCount: number;
 }) {
   const rectifyingCount = workOrders.filter((item) => item.status === "rectifying").length;
+  const overdueCount = workOrders.filter((item) => item.status === "overdue").length;
   const completedCount = workOrders.filter((item) => item.status === "completed").length;
-
-  const overviewItems = [
+  const inProgressFlightTaskCount = flightTasks.filter((item) => item.status === "assigned").length;
+  const overdueFlightTaskCount = flightTasks.filter((item) => item.status === "overdue").length;
+  const completedFlightTaskCount = flightTasks.filter((item) => item.status === "completed").length;
+  const urgentItems = [
     {
       label: "待设置期限",
-      desc: "设置整改期限",
+      desc: "新建工单需补充整改截止时间",
       value: pendingDeadlineCount,
       icon: <CalendarRange size={18} />,
       color: "var(--warning)",
@@ -2228,18 +2783,8 @@ function HomeTab({
       action: onWorkOrderClick,
     },
     {
-      label: "待指派任务",
-      desc: "飞行任务派发",
-      value: pendingFlightTaskCount,
-      icon: <Navigation size={18} />,
-      color: "var(--primary)",
-      bg: "rgba(0,107,255,0.10)",
-      border: "rgba(0,107,255,0.22)",
-      action: onFlightTaskClick,
-    },
-    {
-      label: "待复审工单",
-      desc: "整改资料审核",
+      label: "待审核",
+      desc: "已提交整改资料，待监理审核",
       value: pendingReReviewCount,
       icon: <ClipboardList size={18} />,
       color: "var(--danger)",
@@ -2247,11 +2792,48 @@ function HomeTab({
       border: "rgba(255,74,74,0.22)",
       action: onWorkOrderClick,
     },
+    {
+      label: "待指派团队",
+      desc: "待派发飞行团队并进入执行流程",
+      value: pendingFlightTaskCount,
+      icon: <Navigation size={18} />,
+      color: "var(--primary)",
+      bg: "rgba(0,107,255,0.10)",
+      border: "rgba(0,107,255,0.22)",
+      action: onFlightTaskClick,
+    },
+  ];
+  const prioritizedWorkOrders = [...workOrders]
+    .sort((a, b) => {
+      const priorityMap: Record<WorkOrder["status"], number> = {
+        overdue: 0,
+        "re-review": 1,
+        "pending-deadline": 2,
+        rectifying: 3,
+        completed: 4,
+      };
+      const aPriority = priorityMap[a.status] + (a.status === "re-review" && a.reviewStage !== "ready-review" ? 1 : 0);
+      const bPriority = priorityMap[b.status] + (b.status === "re-review" && b.reviewStage !== "ready-review" ? 1 : 0);
+      if (aPriority !== bPriority) return aPriority - bPriority;
+      return parseWorkOrderDateTime(b.taskDetail.createdAt).getTime() - parseWorkOrderDateTime(a.taskDetail.createdAt).getTime();
+    })
+    .slice(0, 3);
+  const workOrderStatusItems = [
+    { label: "待设置期限", value: pendingDeadlineCount, color: "var(--warning)" },
+    { label: "整改中", value: rectifyingCount, color: "var(--caution)" },
+    { label: "逾期", value: overdueCount, color: "var(--danger)" },
+    { label: "待审核", value: pendingReReviewCount, color: "var(--info)" },
+    { label: "已完成", value: completedCount, color: "var(--success)" },
+  ];
+  const flightTaskStatusItems = [
+    { label: "待指派团队", value: pendingFlightTaskCount, color: "var(--caution)" },
+    { label: "进行中", value: inProgressFlightTaskCount, color: "var(--primary)" },
+    { label: "逾期", value: overdueFlightTaskCount, color: "var(--danger)" },
+    { label: "已完成", value: completedFlightTaskCount, color: "var(--success)" },
   ];
 
   return (
     <div className="flex-1 overflow-y-auto">
-      {/* Hero Banner */}
       <div className="mx-4 mt-4 rounded-2xl overflow-hidden relative" style={{ height: 110, border: "1px solid var(--border)" }}>
         <div className="absolute inset-0" style={{
           background: "linear-gradient(135deg, #ffffff 0%, #eaf4ff 58%, #f4f7fb 100%)",
@@ -2272,7 +2854,7 @@ function HomeTab({
           <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>今日待办</span>
         </div>
         <div className="grid grid-cols-3 gap-2.5">
-          {overviewItems.map((item) => (
+          {urgentItems.map((item) => (
             <button
               key={item.label}
               onClick={item.action}
@@ -2295,14 +2877,68 @@ function HomeTab({
         </div>
       </div>
 
-      {/* Latest Work Orders */}
       <div className="px-4 mt-4">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>最新工单动态</h3>
+          <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>状态概览</h3>
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>全局状态</span>
+        </div>
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={onWorkOrderClick}
+            className="w-full rounded-xl p-4 active:opacity-70 text-left"
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>工单状态</div>
+              <span className="text-xs" style={{ color: "var(--accent)" }}>查看工单</span>
+            </div>
+            <div className="grid grid-cols-5">
+              {workOrderStatusItems.map((item, index) => (
+                <div
+                  key={item.label}
+                  className="flex flex-col items-center py-1"
+                  style={index === 0 ? undefined : { borderLeft: "1px solid var(--border)" }}
+                >
+                  <span className="font-bold" style={{ fontSize: 22, color: item.color }}>{item.value}</span>
+                  <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </button>
+          <button
+            type="button"
+            onClick={onFlightTaskClick}
+            className="w-full rounded-xl p-4 active:opacity-70 text-left"
+            style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>飞拍任务状态</div>
+              <span className="text-xs" style={{ color: "var(--accent)" }}>查看任务</span>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {flightTaskStatusItems.map((item, index) => (
+                <div
+                  key={item.label}
+                  className="flex flex-col items-center py-1.5"
+                  style={index === 0 ? undefined : { borderLeft: "1px solid var(--border)" }}
+                >
+                  <span className="font-bold" style={{ fontSize: 22, color: item.color }}>{item.value}</span>
+                  <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{item.label}</span>
+                </div>
+              ))}
+            </div>
+          </button>
+        </div>
+      </div>
+
+      <div className="px-4 mt-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>优先处理工单</h3>
           <button onClick={onWorkOrderClick} style={{ color: "var(--accent)", fontSize: 12 }}>查看全部</button>
         </div>
         <div className="space-y-2">
-          {workOrders.slice(0, 2).map((workOrder) => (
+          {prioritizedWorkOrders.map((workOrder) => (
             <button
               key={workOrder.id}
               onClick={() => onWorkOrderOpen(workOrder.id)}
@@ -2314,62 +2950,57 @@ function HomeTab({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate" style={{ color: "var(--foreground)" }}>{workOrder.type}</div>
-                <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{workOrder.location}</div>
+                <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                  {workOrder.location} · {workOrder.status === "overdue"
+                    ? "当前工单已逾期，需立即跟进"
+                    : workOrder.status === "re-review"
+                      ? "整改资料已提交，待监理审核"
+                      : workOrder.status === "pending-deadline"
+                        ? "待设置整改期限"
+                        : "责任单位正在整改中"}
+                </div>
               </div>
-              <SupervisorWorkOrderStatusBadge status={workOrder.status} />
+              <SupervisorWorkOrderStatusBadge status={workOrder.status} reviewStage={workOrder.reviewStage} />
             </button>
           ))}
         </div>
       </div>
-
-      {/* Work Order Summary */}
-      <div className="px-4 mt-4 mb-4">
-        <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>工单状态概览</h3>
-        <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-          <div className="grid grid-cols-4 divide-x" style={{ divideColor: "var(--border)" }}>
-            {[
-              { label: "待设置期限", value: pendingDeadlineCount, color: "var(--warning)" },
-              { label: "整改中", value: rectifyingCount, color: "var(--caution)" },
-              { label: "待审核", value: pendingReReviewCount, color: "var(--info)" },
-              { label: "已完成", value: completedCount, color: "var(--success)" },
-            ].map((item) => (
-              <div key={item.label} className="flex flex-col items-center py-1">
-                <span className="font-bold" style={{ fontSize: 22, color: item.color }}>{item.value}</span>
-                <span style={{ fontSize: 11, color: "var(--muted-foreground)" }}>{item.label}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
+      <div className="h-4" />
     </div>
   );
 }
 
-function SupervisorProfileTab({ workOrders }: { workOrders: WorkOrder[] }) {
-  const pendingDeadlineCount = workOrders.filter((item) => item.status === "pending-deadline").length;
-  const rectifyingCount = workOrders.filter((item) => item.status === "rectifying").length;
-  const reReviewCount = workOrders.filter((item) => item.status === "re-review").length;
-
+function SupervisorProfileTab() {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8">
-      <div className="w-20 h-20 rounded-full flex items-center justify-center font-bold"
-        style={{ background: "rgba(0,107,255,0.12)", color: "var(--primary)", fontSize: 28 }}>李</div>
-      <div className="text-center">
-        <div className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>李建国</div>
-        <div className="text-sm" style={{ color: "var(--muted-foreground)" }}>领导监理 · 阳光城 A-C地块</div>
+    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="rounded-2xl p-5" style={{ background: "linear-gradient(135deg, #ffffff 0%, #eaf4ff 58%, #f4f7fb 100%)", border: "1px solid var(--border)" }}>
+        <div className="flex items-center gap-4">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center font-bold"
+            style={{ background: "rgba(0,107,255,0.12)", color: "var(--primary)", fontSize: 24 }}>李</div>
+          <div className="min-w-0">
+            <div className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>李建国</div>
+            <div className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>总监理工程师 · 阳光城 A-C地块项目</div>
+            <div className="text-xs mt-2" style={{ color: "var(--accent)" }}>账号状态：在线值班</div>
+          </div>
+        </div>
       </div>
+
       <div className="w-full rounded-xl p-4 space-y-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+        <div className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>信息</div>
         {[
+          { label: "姓名", value: "李建国" },
+          { label: "岗位", value: "总监理工程师" },
+          { label: "所属单位", value: "云百智航监理中心" },
+          { label: "工号", value: "JL-1024" },
+          { label: "手机号", value: "138****5566" },
+          { label: "电子邮箱", value: "lijg@ybzh.com" },
           { label: "监管项目", value: "阳光城 A-C地块" },
-          { label: "待设置期限工单", value: `${pendingDeadlineCount} 单` },
-          { label: "整改中工单", value: `${rectifyingCount} 单` },
-          { label: "待审核工单", value: `${reReviewCount} 单` },
-          { label: "整改工单", value: `${workOrders.length} 单` },
-          { label: "飞行团队", value: `${droneTeams.length} 支` },
+          { label: "监管区域", value: "A区、B区、C区" },
+          { label: "办公地点", value: "项目监理办公室 2F" },
         ].map((item) => (
           <div key={item.label} className="flex items-center justify-between">
             <span className="text-sm" style={{ color: "var(--muted-foreground)" }}>{item.label}</span>
-            <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{item.value}</span>
+            <span className="text-sm font-medium text-right" style={{ color: "var(--foreground)" }}>{item.value}</span>
           </div>
         ))}
       </div>
@@ -2389,6 +3020,7 @@ export function SupervisorApp() {
   const [creatingFlightTask, setCreatingFlightTask] = useState(false);
   const [flightTaskDraft, setFlightTaskDraft] = useState<Partial<FlightTask> | null>(null);
   const [assigningFlightTaskId, setAssigningFlightTaskId] = useState<string | null>(null);
+  const [flightTaskDetailId, setFlightTaskDetailId] = useState<string | null>(null);
   const [reviewResults, setReviewResults] = useState<Record<string, "approved" | "rejected">>({});
   const [workOrderOverrides, setWorkOrderOverrides] = useState<Record<string, Partial<Pick<WorkOrder, "status" | "deadline" | "reviewStage">> & { rectificationStatusText?: string; rectificationSummary?: string }>>({});
   const [deadlineDrafts, setDeadlineDrafts] = useState<Record<string, string>>(
@@ -2440,8 +3072,8 @@ export function SupervisorApp() {
     });
   };
 
-  const handleTeamAssigned = (teamId: string, workOrderId: string) => {
-    const nextThread = createAssignedLeaderThread(teamId, workOrderId);
+  const handleTeamAssigned = (teamId: string, taskId: string) => {
+    const nextThread = createAssignedLeaderThread(teamId, taskId);
     if (!nextThread) return;
 
     upsertTeamThread(nextThread);
@@ -2476,6 +3108,8 @@ export function SupervisorApp() {
               assignedTeamName: team.name,
               assignedLeader: team.leader,
               assignedAt: "刚刚",
+              assignedPilotName: team.defaultPilotName,
+              assignedPilotPhone: team.defaultPilotPhone,
             }
           : item,
       ),
@@ -2550,7 +3184,7 @@ export function SupervisorApp() {
   if (assignId) {
     return (
       <AssignDroneModal
-        workOrderId={assignId}
+        taskId={assignId}
         onClose={() => setAssignId(null)}
         onAssigned={handleTeamAssigned}
       />
@@ -2588,6 +3222,22 @@ export function SupervisorApp() {
         initialTask={flightTaskDraft}
       />
     );
+  }
+
+  if (flightTaskDetailId) {
+    const task = flightTasks.find((item) => item.id === flightTaskDetailId);
+    if (task) {
+      return (
+        <FlightTaskDetailPage
+          task={task}
+          onBack={() => setFlightTaskDetailId(null)}
+          onAssign={(id) => {
+            setFlightTaskDetailId(null);
+            setAssigningFlightTaskId(id);
+          }}
+        />
+      );
+    }
   }
 
   if (assigningFlightTaskId) {
@@ -2642,6 +3292,7 @@ export function SupervisorApp() {
         {activeTab === "home" && (
         <HomeTab
           workOrders={resolvedWorkOrders}
+          flightTasks={flightTasks}
           onWorkOrderClick={() => setActiveTab("workorder")}
           onWorkOrderOpen={(id) => setWorkOrderDetailId(id)}
           onFlightTaskClick={() => setActiveTab("flight")}
@@ -2655,6 +3306,7 @@ export function SupervisorApp() {
             tasks={flightTasks}
             onCreate={() => openFlightTaskCreate()}
             onAssign={(id) => setAssigningFlightTaskId(id)}
+            onOpenDetail={(id) => setFlightTaskDetailId(id)}
           />
         )}
         {activeTab === "workorder" && (
@@ -2667,7 +3319,7 @@ export function SupervisorApp() {
         )}
         {activeTab === "message" && <MessageTab threads={messageThreads} setThreads={setMessageThreads} />}
         {activeTab === "dashboard" && <DashboardTab onExport={() => setExporting(true)} />}
-        {activeTab === "profile" && <SupervisorProfileTab workOrders={resolvedWorkOrders} />}
+        {activeTab === "profile" && <SupervisorProfileTab />}
       </div>
       <BottomTab tabs={tabs} active={bottomActive} onChange={setActiveTab} />
     </div>

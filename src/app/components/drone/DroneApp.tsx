@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { NavBar } from "../shared/NavBar";
 import { BottomTab, TabItem } from "../shared/BottomTab";
 import { TaskRouteMap } from "../shared/TaskRouteMap";
@@ -11,11 +11,10 @@ import {
 
 // ─── Drone Pilot App ─────────────────────────────────────────
 
-type PilotTaskStatus = "pending" | "accepted" | "rejected" | "completed" | "exception";
+type PilotTaskStatus = "pending" | "accepted" | "rejected" | "completed" | "overdue";
 
 type PilotTask = {
   id: string;
-  workOrderId: string;
   type: string;
   location: string;
   gps: string;
@@ -25,33 +24,32 @@ type PilotTask = {
   acceptedAt?: string;
   completedAt?: string;
   rejectedReason?: string;
+  exceptionReported?: boolean;
+  exceptionReason?: string;
 };
 
 const initialPilotTasks: PilotTask[] = [
   {
     id: "TASK-20250612-01",
-    workOrderId: "WO-20250612-002",
-    type: "整改复核飞拍",
+    type: "基坑作业区安全巡检",
     location: "B区基坑-东侧",
     gps: "30.567890, 114.305678",
     deadline: "2025-06-12 16:00",
     status: "pending",
-    requirement: "对B区基坑东侧高空作业区域进行复核拍摄，重点拍摄作业人员安全绳佩戴情况。",
+    requirement: "对B区基坑东侧作业区域进行安全巡检拍摄，重点回传作业面、通行区域和安全防护影像。",
   },
   {
     id: "TASK-20250612-03",
-    workOrderId: "WO-20250612-005",
-    type: "临边防护复核",
+    type: "临边作业面安全巡检",
     location: "C区4号楼-临边作业面",
     gps: "30.566218, 114.307912",
     deadline: "2025-06-13 16:00",
     status: "accepted",
     acceptedAt: "09:18",
-    requirement: "复核临边护栏、警示标识和作业人员活动区域，按指定航线完成现场飞拍。",
+    requirement: "巡检临边护栏、警示标识和作业人员活动区域，按指定航线完成现场飞拍。",
   },
   {
     id: "TASK-20250611-02",
-    workOrderId: "WO-20250611-003",
     type: "日常巡查飞拍",
     location: "D区施工现场",
     gps: "30.564321, 114.308765",
@@ -66,10 +64,10 @@ const initialPilotTasks: PilotTask[] = [
 function PilotTaskStatusBadge({ status }: { status: PilotTaskStatus }) {
   const statusMap: Record<PilotTaskStatus, { label: string; bg: string; color: string }> = {
     pending: { label: "待接收", bg: "rgba(255,224,71,0.18)", color: "var(--caution)" },
-    accepted: { label: "已接受", bg: "rgba(0,107,255,0.12)", color: "var(--primary)" },
+    accepted: { label: "进行中", bg: "rgba(0,107,255,0.12)", color: "var(--primary)" },
     rejected: { label: "已拒绝", bg: "rgba(255,74,74,0.12)", color: "var(--danger)" },
     completed: { label: "已完成", bg: "rgba(53,208,127,0.14)", color: "var(--success)" },
-    exception: { label: "异常上报", bg: "rgba(255,122,0,0.14)", color: "var(--caution)" },
+    overdue: { label: "逾期", bg: "var(--danger)", color: "#fff" },
   };
   const item = statusMap[status];
 
@@ -180,7 +178,7 @@ function TaskDetail({
               <span className="text-sm font-semibold" style={{ color: "var(--caution)" }}>任务异常上报</span>
             </div>
             <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-              如遇天气限制、场地无法进入、设备故障等情况，请及时上报。
+              如遇天气限制、场地无法进入、设备故障等情况，请及时反馈给飞手团队负责人。
             </p>
           </div>
 
@@ -243,7 +241,7 @@ function TaskDetail({
           <div className="text-center">
             <div className="font-semibold text-lg" style={{ color: "var(--foreground)" }}>异常已上报</div>
             <div className="text-sm mt-1" style={{ color: "var(--muted-foreground)" }}>
-              已通知飞手负责人和监理，等待进一步指示
+              已通知飞手团队负责人，请等待进一步安排
             </div>
           </div>
           <button onClick={onBack} className="mt-4 px-8 py-2.5 rounded-xl font-semibold text-sm"
@@ -267,9 +265,7 @@ function TaskDetail({
             </div>
             <PilotTaskStatusBadge status={task.status} />
           </div>
-          <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-            关联工单: <span style={{ color: "var(--accent)" }}>{task.workOrderId}</span>
-          </div>
+          <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>独立飞拍任务</div>
         </div>
 
         <div className="p-4 space-y-3">
@@ -303,7 +299,7 @@ function TaskDetail({
             <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--foreground)" }}>任务状态</h3>
             <div className="space-y-2">
               {[
-                { label: "接收状态", value: task.status === "accepted" ? "已接受，可执行" : task.status === "completed" ? "已完成" : "异常已上报" },
+                { label: "执行状态", value: task.status === "accepted" ? "进行中" : task.status === "completed" ? "已完成" : task.status === "overdue" ? "已逾期" : "待接收" },
                 { label: "接受时间", value: task.acceptedAt ?? "刚刚" },
                 { label: "完成时间", value: task.completedAt ?? "未完成" },
               ].map((item) => (
@@ -314,6 +310,22 @@ function TaskDetail({
               ))}
             </div>
           </div>
+
+          {task.exceptionReported && task.exceptionReason && (
+            <div className="rounded-xl p-4" style={{ background: "rgba(255,224,71,0.08)", border: "1px solid rgba(255,224,71,0.22)" }}>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: "var(--foreground)" }}>异常反馈记录</h3>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>反馈状态</span>
+                  <span className="text-xs font-medium" style={{ color: "var(--foreground)" }}>已提交给飞手团队负责人</span>
+                </div>
+                <div className="pt-2" style={{ borderTop: "1px solid rgba(255,224,71,0.18)" }}>
+                  <div className="text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>反馈内容</div>
+                  <div className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{task.exceptionReason}</div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {task.status === "completed" && (
             <div className="rounded-xl p-4 flex items-center gap-3"
@@ -473,7 +485,7 @@ function TaskListTab({ tasks, onSelect }: { tasks: PilotTask[]; onSelect: (task:
           </div>
           <div className="flex items-center justify-between mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
             <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-              {task.status === "accepted" ? "可查看任务详情并完成任务" : "可查看任务状态"}
+              {task.status === "accepted" ? "可查看任务详情、反馈异常或完成任务" : "可查看任务状态"}
             </span>
             <span className="text-xs font-semibold flex items-center gap-1" style={{ color: "var(--accent)" }}>
               任务详情
@@ -498,6 +510,7 @@ function TaskListTab({ tasks, onSelect }: { tasks: PilotTask[]; onSelect: (task:
 function DroneHomeTab({
   pendingCount,
   activeCount,
+  overdueCount,
   completedCount,
   latestTask,
   onIncoming,
@@ -505,6 +518,7 @@ function DroneHomeTab({
 }: {
   pendingCount: number;
   activeCount: number;
+  overdueCount: number;
   completedCount: number;
   latestTask?: PilotTask;
   onIncoming: () => void;
@@ -543,10 +557,11 @@ function DroneHomeTab({
         </div>
       </div>
 
-      <div className="px-4 mt-4 grid grid-cols-3 gap-3">
+      <div className="px-4 mt-4 grid grid-cols-4 gap-3">
         {[
           { label: "待接收", value: pendingCount, color: "var(--caution)", bg: "rgba(255,224,71,0.12)", action: onIncoming },
-          { label: "执行中", value: activeCount, color: "var(--primary)", bg: "rgba(0,107,255,0.10)", action: onTasks },
+          { label: "进行中", value: activeCount, color: "var(--primary)", bg: "rgba(0,107,255,0.10)", action: onTasks },
+          { label: "逾期", value: overdueCount, color: "var(--danger)", bg: "rgba(255,74,74,0.10)", action: onTasks },
           { label: "已完成", value: completedCount, color: "var(--success)", bg: "rgba(53,208,127,0.1)", action: onTasks },
         ].map((item) => (
           <button key={item.label} onClick={item.action} className="rounded-xl p-3 flex flex-col items-center active:opacity-80" style={{ background: item.bg }}>
@@ -585,7 +600,7 @@ function DroneHomeTab({
         ) : (
           <div className="rounded-xl p-6 text-center text-sm"
             style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
-            暂无已接受任务
+            暂无进行中任务
           </div>
         )}
       </div>
@@ -600,11 +615,12 @@ export function DroneApp() {
   const [rejectingTask, setRejectingTask] = useState<PilotTask | null>(null);
 
   const pendingTasks = tasks.filter((task) => task.status === "pending");
-  const acceptedTasks = tasks.filter((task) => ["accepted", "completed", "exception"].includes(task.status));
+  const taskListTasks = tasks.filter((task) => ["accepted", "completed", "overdue"].includes(task.status));
   const activeTasks = tasks.filter((task) => task.status === "accepted");
+  const overdueTasks = tasks.filter((task) => task.status === "overdue");
   const completedTasks = tasks.filter((task) => task.status === "completed");
   const rejectedTasks = tasks.filter((task) => task.status === "rejected");
-  const latestTask = activeTasks[0] ?? completedTasks[0];
+  const latestTask = activeTasks[0] ?? overdueTasks[0] ?? completedTasks[0];
 
   const tabs: TabItem[] = [
     { key: "home", label: "首页", icon: <LayoutGrid size={20} /> },
@@ -651,13 +667,18 @@ export function DroneApp() {
     );
   };
 
-  const reportException = (taskId: string) => {
+  const reportException = (taskId: string, reason: string) => {
     setTasks((current) =>
       current.map((task) =>
         task.id === taskId
-          ? { ...task, status: "exception" }
+          ? { ...task, exceptionReported: true, exceptionReason: reason }
           : task,
       ),
+    );
+    setSelectedTask((current) =>
+      current && current.id === taskId
+        ? { ...current, exceptionReported: true, exceptionReason: reason }
+        : current,
     );
   };
 
@@ -700,6 +721,7 @@ export function DroneApp() {
           <DroneHomeTab
             pendingCount={pendingTasks.length}
             activeCount={activeTasks.length}
+            overdueCount={overdueTasks.length}
             completedCount={completedTasks.length}
             latestTask={latestTask}
             onIncoming={() => setActiveTab("incoming")}
@@ -716,7 +738,7 @@ export function DroneApp() {
         )}
         {activeTab === "tasks" && (
           <TaskListTab
-            tasks={acceptedTasks}
+            tasks={taskListTasks}
             onSelect={setSelectedTask}
           />
         )}

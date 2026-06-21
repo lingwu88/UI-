@@ -1,6 +1,4 @@
-import React from "react";
-
-type StatusType = "violation" | "pending" | "reviewing" | "rectifying" | "re-review" | "completed" | "exception" | "flying" | "assigned";
+type StatusType = "violation" | "pending" | "reviewing" | "rectifying" | "re-review" | "completed" | "exception" | "flying" | "assigned" | "overdue";
 
 const STATUS_MAP: Record<StatusType, { label: string; bg: string; color: string; dot: string }> = {
   violation: { label: "确认违规", bg: "var(--danger)", color: "#fff", dot: "#fff" },
@@ -9,9 +7,10 @@ const STATUS_MAP: Record<StatusType, { label: string; bg: string; color: string;
   rectifying: { label: "整改中", bg: "var(--caution)", color: "#fff", dot: "#fff" },
   "re-review": { label: "待复核", bg: "var(--info)", color: "#fff", dot: "#fff" },
   completed: { label: "整改完成", bg: "var(--success)", color: "#fff", dot: "#fff" },
+  overdue: { label: "逾期", bg: "var(--danger)", color: "#fff", dot: "#fff" },
   exception: { label: "任务异常", bg: "var(--danger)", color: "#fff", dot: "#fff" },
   flying: { label: "飞行中", bg: "var(--info)", color: "#fff", dot: "#fff" },
-  assigned: { label: "已指派", bg: "var(--primary)", color: "#fff", dot: "#fff" },
+  assigned: { label: "进行中", bg: "var(--primary)", color: "#fff", dot: "#fff" },
 };
 
 interface StatusBadgeProps {
